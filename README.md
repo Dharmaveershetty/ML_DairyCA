@@ -28,3 +28,5 @@ The Regression Outliers Diagnostics shows the following:
 - Bonferroni Outlier Test: Row 55 and 52 is the most extreme outlier
 - QQ plot is close to the linear line, but samples 52 and 55 seem to be outliers 
 - Leverage Plot: Both 55 and 52 seem to have high leverage (i.e., influence on the model, in addition to being outliers)
+
+DAIRY EFFLUENTS: MACHINE LEARNING MODELS (CARAT PACKAGE)
