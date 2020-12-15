@@ -3,7 +3,7 @@
 # *Machine Learning (Artificial Intelligence) Models*
 # ---------------------------------------------------------------------------------
 # *Author: Dharma*
-# *Start Date: Dec 14, 2020
+# *Starting Date: Dec 14, 2020
 # *Reference: https://www.machinelearningplus.com/machine-learning/caret-package/
 # -----------------------------------------------------------------------------------
 
