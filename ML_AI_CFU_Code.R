@@ -16,7 +16,7 @@
 # 1: EXPLORATORY DATA ANALYSIS: DATASET, LIBRARIES, & VISUALIZATION
 # -----------------------------------------------------------------
 
-install.packages(c('caret', 'skimr', 'RANN', 'randomForest', 'fastAdaboost', 'gbm', 'xgboost', 'caretEnsemble', 'C50', 'earth'))
+install.packages(c('caret', 'skimr'))
 library(readxl)
 library (caret)
 library (tidyverse)
@@ -33,10 +33,18 @@ masterdata <- masterdata [, c(1:7,11,15,19,23,27,31,35:37,42)]
 ## (Removed the 'no' variable to avoid serial numbers for each row taken as a continuous variable)
 ## (Removed the date variabel as the dates were converted into seasons; i.e, time series into categorial)
 masterdata <- masterdata [, -c(1:3,7)]
+masterdata <- masterdata %>% rename (Conductivity = conduc, 
+                                     Total_Solids = TS, 
+                                     Volatile_Solids = VS, 
+                                     Sodium = Na, 
+                                     Potassium = K, 
+                                     Calcium = Ca, 
+                                     Nitrates = NO3)
 
 
 # Descriptive Statistics
 library(skimr)
+library(arsenal) 
 skim_descriptive <- skim(masterdata)
 skim_descriptive 
   ## skim_descriptive %>% 
@@ -47,7 +55,33 @@ skim_descriptive
 ## It is a way to read numerical data. It is not the same as the exponential constant (e = 2.71)]
 
 
-# Visualizing the importance or relationship of different variables to the outcome
+# Descriptive statistics by group
+##descriptive_gp <- masterdata %>% group_by (Treatment, Season) %>% skim () 
+##descriptive_gp
+##write2html(descriptive_gp, 
+           ##keep.md = FALSE,  
+           ##"~/descriptive.doc")
+
+# Descriptive statistics by group (which produces a better printout)
+library(arsenal) 
+descriptive_group <- tableby(interaction (Treatment, Season) ~ ., data = masterdata, 
+                             test = T, total = T, 
+                             numeric.test = "anova", cat.test = "chisq",
+                             numeric.stats = c("meansd", "medianq1q3", "range", "Nmiss2"),
+                             cat.stats = c("countpct", "Nmiss2"),
+                             stats.labels = list(
+                                  meansd = "Mean (SD)",
+                                  medianq1q3 = "Median (Q1, Q3)",
+                                  range = "Min - Max",
+                                  Nmiss2 = "Missing"))
+summary(descriptive_group, title = "Descriptive Statistics")
+write2word(descriptive_group, 
+           keep.md = FALSE,
+           "~/Desktop/descriptive.doc")
+
+
+# Visualizing the importance or relationship of individual variables to the outcome
+##Continuous Variables
 theme1 <- trellis.par.get()
 theme1$plot.symbol$col = rgb(.2, .2, .2, .4)
 theme1$plot.symbol$pch = 16
@@ -57,15 +91,17 @@ trellis.par.set(theme1)
 featurePlot(x = masterdata[,4:12],
             y = masterdata$CFU,
             plot = "scatter",
-            type = c("p", "smooth"))
-pdf ("boxplot.pdf")
-ggplot (masterdata, aes (x = Treatment, y = CFU)) + 
+            type = c("p", "smooth"), 
+            labels = c("Predictors", "Bacterial Count (CFU)"))
+##Categorical Variables
+library (Rmisc)
+bp1 <- ggplot (masterdata, aes (x = Treatment, y = CFU)) + 
   geom_boxplot()
-ggplot (masterdata, aes (x = Stage, y = CFU)) + 
+bp2 <- ggplot (masterdata, aes (x = Season, y = CFU)) + 
   geom_boxplot()
-ggplot (masterdata, aes (x = Season, y = CFU)) + 
+bp3 <- ggplot (masterdata, aes (x = Stage, y = CFU)) + 
   geom_boxplot()
-dev.off()
+multiplot (bp1, bp2, bp3, layout = matrix (c(1,2,3,3), nrow=2, byrow=TRUE))
 
 
 # Visualizing predictor correlations
@@ -261,40 +297,6 @@ Table <- merge (Table, d, by = 'rank', all = TRUE)
 # 4.MODEL TRAINING AND TUNING: USING THE TRAINING DATASET
 # -------------------------------------------------------------------
 
-# Training the model using the 'earth' algorithm (MARS model)
-## (List of names of the various models present in caret )
-###names (getModelInfo())
-## (Getting the information of individual models/algorithms)
-###modelLookup("earth")
-## (Training the model using the 'earth' algorithm
-## (which is a Multivariate Adaptive Regression Splines (MARS) model)
-###model_mars = train (CFU ~., data=TrainData, method='earth')
-###fitted <- predict(model_mars)
-###model_mars
-## (Plotting the model shows how the various iterations of hyperparameter search performed)
-###varimp_mars <- varImp (model_mars)
-###plot(model_mars, main="Model Accuracies with MARS")
-
-# Computing variable importance in the MARS model
-###varimp_mars <- varImp(model_mars, useModel = FALSE, nonpara = FALSE, scale = TRUE)
-###plot(varimp_mars, main="Variable Importance with MARS")
-
-# Training with other models
-## Training the model using Random Forest
-###modelLookup('rf')
-###model_rf = train(CFU ~ ., data=TrainData, method='rf')
-###model_rf
-## Training the model using svmRadial
-###modelLookup('svmRadial')
-###model_svmRadial = train(CFU ~ ., data=TrainData, method='svmRadial')
-###model_svmRadial
-## Compare model performances using resample()
-###models_compare <- resamples(list(RF=model_rf, MARS=model_mars, SVM=model_svmRadial))
-# Summary of the models performances
-###summary(models_compare)
-## Draw box plots to compare models
-###scales <- list(x=list(relation="free"), y=list(relation="free"))
-###bwplot(models_compare, scales=scales)
 
 # List of algorithms categorized by Dharma for future use (if req)
 ## (Algorithm List where type = regression only)
@@ -323,11 +325,57 @@ Table <- merge (Table, d, by = 'rank', all = TRUE)
 ##                  'dnn', 'gbm', 'svmBoundrangeString', 'svmExpoString', 'svmLinear',
 ##                  'svmLinear2', 'svmPoly', 'svmRadial', 'svmRadialCost', 'svmRadialSigma',
 ##                  'svmSpectrumString', 'evtree', 'nodeHarvest')
+## (Select algorithms from various algorithm classes)
+##Algo_GLM <- c('bayesglm', 'glm', 'glmStepAIC')
+##Algo_boosting <- c('xgbDART', 'xgbLinear', 'xgbTree')
+##Algo_SVM <- c('svmRadial','svmLinear','svmLinear2','svmLinear3','svmPoly','svmRadialCost','svmRadialSigma')
+##Algo_neuralnetworks <- c('avNNet', 'nnet', 'brnn')
+##Algo_rf <- c('rf','cforest','parRF','qrf','ranger','Rborist','rfRules','RRF','RRFglobal')
+##Algo_casewts <- c('treebag', 'bayesglm')
+##Algo_bagging <- c('cforest')
+##Algo_bayesian <- c('spikeslab')
+##Algo_binarypredictors <- c()
+##Algo_costsens <- c()
+##Algo_discriminant <- c()
+##Algo_distwtdiscrimination <- c()
+##Algo_ensemble <- c()
+##Algo_featureextctn <- c('icr', 'pcaNNet', 'simpls', 'pcr', 'ppr', 'superpc')
+##Algo_featureselnwrap <- c('leapBackward', 'leapForward', 'leapSeq', 'stepQDA', 'foba')
+##Algo_gaussian <- c('gaussprLinear', 'gaussprPoly')
+##Algo_generalizedadditive <- c('gamboost', 'gamLoess', 'gam')
+##Algo_generalizedlinear <- c('bayesglm', 'randomGLM', 'glm', 'msaenet', 'glm.nb')
+##Algo_missingdata <- c()
+##Algo_implicitfeatureseln <- c('bartMachine', 'BstLm', 'rpart', 'cforest', 'ctree2')
+##Algo_kernel <- c('gaussprLinear', 'gaussprRadial')
+##Algo_L1regularization <- c('blassoAveraged', 'glmnet_h2o')
+##Algo_L2regularization <- c('bridge', 'mlpWeightDecay', 'mlpWeightDecayML')
+##Algo_Linearclassifier <- c('glmboost', 'randomGLM')
+##Algo_Linearregression <- c('BstLm', 'cubist', 'icr', 'lars2', 'lm')
+##Algo_Logicregression <- c('logreg', 'logreg')
+##Algo_MARS <- c('earth', 'gcvEarth')
+##Algo_Mixturemodel <- c()
+##Algo_ModelTree <- c('M5Rules', 'M5')
+##Algo_Obliquetree <- c()
+##Algo_PLS <- c('kernelpls', 'pls')
+##Algo_PatientRIM <- c()
+##Algo_Polynomial <- c('krlsPoly', 'rvmPoly')
+##Algo_Prototypemodels <- c('kknn','knn')
+##Algo_Quantileregression <- c('rqnc', 'qrf', 'qrnn', 'rqlasso')
+##Algo_Radialbasisfn <- c('rbf', 'rbfDDA', 'rvmRadial', 'svmRadialCost')
+##Algo_Regularization <- c('RRFglobal')
+##Algo_RVM <- c('rvmLinear', 'rvmPoly')
+##Algo_Ridgeregression <- c()
+##Algo_Robustmethods <- c('svmRadialSigma')
+##Algo_Robustmodels <- c('qrnn', 'rlm')
+##Algo_Rulebased <- c('ANFIS', 'DENFIS', 'FIR.DM', 'GFS.FR.MOGUL', 'GFS.THRIFT')
+##Algo_SOMaps <- c('xyf')
+##Algo_Stringkernels <- c()
+##Algo_SCP <- c('blackboost', 'rpart1SE')
+##Algo_Textmining <- c()
+##Algo_Treebasedmodel <- c('bstTree')
+##Algo_2class <- c('ORFlog', 'nodeHarvest')
 
-
-
-
-# Comparing various ML models
+# Comparing various Machine Learning models in order to select a few models
 library(caretEnsemble)
 ## Set the seed for reproducibility
 set.seed(100)
@@ -338,55 +386,115 @@ trainControl <- trainControl(method="repeatedcv",
                              savePredictions=TRUE, 
                              classProbs=TRUE)
 ## Stacking Algorithms - creating groups of algorithms to run together
-Algo_GLM <- c('bayesglm', 'glm', 'glmStepAIC')
-Algo_boosting <- c('xgbDART', 'xgbDART', 'xgbLinear', 'xgbTree')
-Algo_SVM <- c('svmLinear', 'svmRadial')
-Algo_neuralnetworks <- c('avNNet', 'nnet', 'brnn')
-Algo_others_RfMarsPlsLr <- c('rf', 'earth', 'widekernelpls', 'enet' )
-## Runing multiple algorithms/models in combined calls.
-models_GLM <- caretList(CFU ~ ., data=TrainData, trControl=trainControl, methodList=Algo_GLM) 
-models_boosting <- caretList(CFU ~ ., data=TrainData, trControl=trainControl, methodList=Algo_boosting)
-models_SVM <- caretList(CFU ~ ., data=TrainData, trControl=trainControl, methodList=Algo_SVM) 
-models_neuralnetworks <- caretList(CFU ~ ., data=TrainData, trControl=trainControl, methodList=Algo_neuralnetworks) 
-models_others_RfMarsPlsLr <- caretList(CFU ~ ., data=TrainData, trControl=trainControl, methodList=Algo_others_RfMarsPlsLr) 
+Algorithms <- c('bayesglm', 'glm', 'glmStepAIC',
+                'xgbDART', 'xgbLinear', 'xgbTree',
+                'svmRadial','svmLinear','svmLinear2','svmLinear3','svmPoly','svmRadialCost','svmRadialSigma',
+                'avNNet', 'nnet', 'brnn',
+                'rf','cforest','parRF','qrf','ranger','Rborist','rfRules','RRF','RRFglobal',
+                'earth', 'widekernelpls', 'enet')
+## Runing multiple algorithms/models in a combined call.            
+Models <- caretList(CFU ~ ., data=TrainData, trControl=trainControl, methodList=Algorithms) 
 ## Obtaining the results of the model sets
-results_GLM <- resamples(models_GLM)
-results_boosting <- resamples(models_boosting)
-results_SVM <- resamples(models_SVM)
-results_neuralnetworks <- resamples(models_neuralnetworks)
-results_others_RfMarsPlsLr <- resamples(models_others_RfMarsPlsLr)
+Results_models <- resamples(Models)
 ## Summarizing the results of the model sets
-summary(results_GLM)
-summary(results_boosting)
-summary(results_SVM)
-summary(results_neuralnetworks)
-summary(results_others_RfMarsPlsLr)
-## Box plots to compare models
+summary (Results_models)
+## Box plots to compare models using the bw plot function
 scales <- list(x=list(relation="free"), y=list(relation="free"))
-pdf("model_RMSE.pdf")
-bwplot(results_GLM, scales=scales)
-bwplot(results_boosting, scales=scales)
-bwplot(results_SVM, scales=scales)
-bwplot(results_neuralnetworks, scales=scales)
-bwplot(results_others_RfMarsPlsLr, scales=scales)
-dev.off()
-## [Thus, based on the RMSE scores, the best models are svmRadial and rf]
+bw_models <- bwplot(Results_models, scales=scales)
+## Box plots to compare models using the ggplot2 plot function (which gives us more control but is tougher to perform)
+library(tidyverse)
+Results_models$values %>%                   #extract the values
+  select(1, ends_with("RMSE")) %>%          #select the first column and all columns with a name ending with "RMSE"
+  gather(model, RMSE, -1) %>%               #convert to long table
+  mutate(model = sub("~RMSE", "", model)) %>%              #leave just the model names
+  ggplot()+                                                #call ggplot
+  geom_boxplot(aes(x = RMSE, y = model)) -> p1             #and plot the box plot
+Results_models$values %>%                  
+  select(1, ends_with("Rsquared")) %>%          
+  gather(model, Rsquared, -1) %>%               
+  mutate(model = sub("~Rsquared", "", model)) %>%              
+  ggplot()+                                                
+  geom_boxplot(aes(x = Rsquared, y = model)) -> p2
+library (Rmisc)
+multiplot(p1, p2, cols = 2)
 
 
-# Predicting on the Test Data Set Using the selected models (req for classification problems)
-##model_svmRadial = train(CFU ~ ., data=TrainData, method ='svmRadial')
-##model_rf = train(CFU ~ ., data=TrainData, method ='rf')
-##predicted_svmRadial <- predict(model_svmRadial, TestData)
-##predicted_rf <- predict(model_rf, TestData)
-##predicted_svmRadial
-##predicted_rf
-# Confusion matrix (req for classification problems)
-##confusionMatrix(reference = TestData$CFU, data = predicted_rf, mode='everything', positive='MM')
+## [Thus, based on the RMSE scores, the best models are svmRadialSigma and qrf]
 
 
 
-# Optimizing the svmRadial model by tuning the model hyperparameters
+# Running the second best Model = qrf, in more detail
+set.seed(100)
+## Looking up the parameters present in the model
+modelLookup("qrf")
+## Training the model
+model_qrf = train (CFU ~., data=TrainData, method='qrf')
+## Visualizing the model parameters chosen
+model_qrf
+plot (model_qrf)
+## Hypertuning the parameters of the model using the previously used TrainControl function
+set.seed(100)
+model_qrf = train(CFU ~ ., data=TrainData, method='qrf', tuneLength = 5, metric='rmse', trControl = trainControl)
+model_qrf
+plot (model_qrf)
+## Fitting the trained model to the Training Data to predict the outcome (only for visualization since it is done automatically in the model)
+fitted_qrf <- predict (model_qrf)
+fitted_qrf
+## Computing the importance of each variable in the model
+varimp_qrf <- varImp(model_qrf, useModel = FALSE, nonpara = FALSE, scale = TRUE)
+plot(varimp_qrf, main="Variable Importance with qrf")
 
+
+
+# Running the first best Model = svmRadialSigma, in more detail
+set.seed(100)
+## Looking up the parameters present in the model
+modelLookup("svmRadialSigma")
+## Training the model
+model_svmRadialSigma = train (CFU ~., data=TrainData, method='svmRadialSigma')
+## Visualizing the model parameters chosen
+model_svmRadialSigma
+plot (model_svmRadialSigma)
+## Creating an universal traincontrol function
+trainControl <- trainControl(method="cv", 
+                             number=10, 
+                             repeats=3,
+                             savePredictions=TRUE, 
+                             classProbs=TRUE)
+## Hypertuning the parameters of the model 
+set.seed(100)
+model_svmRadialSigma = train(CFU ~ ., data=TrainData, method='svmRadialSigma', tuneLength = 5, metric='rmse', trControl = trainControl)
+model_svmRadialSigma
+plot (model_svmRadialSigma)
+## Fitting the trained model to the Training Data to predict the outcome (only for visualization since it is done automatically in the model)
+fitted_svmRadialSigma <- predict (model_svmRadialSigma)
+fitted_svmRadialSigma
+## Computing the importance of each variable in the model
+varimp_svmRadialSigma <- varImp(model_svmRadialSigma, useModel = FALSE, nonpara = FALSE, scale = TRUE)
+plot(varimp_svmRadialSigma, main="Variable Importance with SVMRadialSigma")
+
+
+
+
+
+
+# ------------------------------------------------------------------
+# 5.MODEL TESTING: USING THE TEST DATASET
+# -------------------------------------------------------------------
+
+
+# qrf Model: Predicting the outcome in the Test dataset using the trained model
+predicted_qrf <- predict(model_qrf, TestData)
+predicted_qrf
+# Measures of regression between the actual outcome and the predicted outcome in the Test Dataset
+postResample(pred = predicted_qrf, obs = TestData$CFU)
+
+
+# svmRadialSigma Model: Predicting the outcome in the Test dataset using the trained model
+predicted_svmRadialSigma <- predict(model_svmRadialSigma, TestData)
+predicted_svmRadialSigma
+# Measures of regression between the actual outcome and the predicted outcome in the Test Dataset
+postResample(pred = predicted_svmRadialSigma, obs = TestData$CFU)
 
 
 
