@@ -1,4 +1,14 @@
-# *DAIRY AGROECOSYSTEMS: REGRESSION ANALYSIS* 
+# -----------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------------
+# *DAIRY AGROECOSYSTEMS*
+# *Regression Analysis*
+# ----------------------------------------------------------------------------------
+# *Author: Dharma*
+# *Start Date: 
+# *Reference: https://www.statmethods.net/stats/regression.html
+# (Needs more work, especially with respect to the diagnostics)
+# -----------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------------
 
 # Libraries
 library(readxl)
@@ -39,7 +49,7 @@ masterdata_final[!complete.cases(masterdata_final),]
                  data = masterdata_final)
       step <- stepAIC (Fit_CFU, direction = "both")
       step$anova                                           # display results 
-      # The selected predictor variables for the TS model are: 
+      # The selected predictor variables for the CFU model are: 
       # CFU ~ Treatment + Stage + Season + pH + VS
 
 

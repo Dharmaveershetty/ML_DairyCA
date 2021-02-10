@@ -42,45 +42,105 @@ masterdata <- masterdata %>% rename (Conductivity = conduc,
                                      Nitrates = NO3)
 
 
-# Descriptive Statistics
-library(skimr)
-library(arsenal) 
-skim_descriptive <- skim(masterdata)
-skim_descriptive 
-  ## skim_descriptive %>% 
-    ## write.csv('skim_desc.csv') 
-## [The above dplyr pipeline command to write.csv needs more work since the histograms are not showing up.
-## Thus, I took a screenshot instead]
-## [Note: e+03 means 10^3 where e stands for EXP = exponential.
-## It is a way to read numerical data. It is not the same as the exponential constant (e = 2.71)]
+# Descriptive & Univariate Statistics using the Skimr package
+##library (skimr)
+##skim_descriptive <- masterdata %>% skim () %>% rename (variable_type = skim_type, variable = skim_variable)
+##library(xlsx)
+##write.xlsx(skim_descriptive, "desc.xlsx") 
+
+# Descriptive and Univariate Statistics categorized by Treatment, using the Arsenal package
+##library(arsenal) 
+##descriptive_group <- tableby(Treatment ~ ., data = masterdata, 
+##                             test = T, total = T, 
+##                             numeric.test = "anova", cat.test = "chisq",
+##                             numeric.stats = c("meansd", "medianq1q3", "range", "Nmiss2"),
+##                             cat.stats = c("countpct", "Nmiss2"),
+##                             stats.labels = list(
+##                               meansd = "Mean (SD)",
+##                               medianq1q3 = "Median (Q1, Q3)",
+##                               range = "Min - Max",
+##                               Nmiss2 = "Missing"))
+##summary(descriptive_group, title = "Descriptive Statistics")
+##write2word(descriptive_group, 
+##           keep.md = FALSE,
+##           "~/Desktop/descriptive.doc")
 
 
-# Descriptive statistics by group
+# Descriptive and Univariate Statistics categorized by Treatment and Stage, using the Arsenal package
+# Summary Statistics & ANOVA
+# Creating tableby controls variable (Summary stats & ANOVA)
+library (arsenal)
+tcontrols <- tableby.control(
+  test = TRUE,
+  total = TRUE,
+  numeric.test = "anova",
+  numeric.stats = c("meansd", "medianq1q3", "range", "Nmiss2"),
+  stats.labels = list(
+    meansd = "Mean (SD)",
+    medianq1q3 = "Median (Q1, Q3)",
+    range = "Min - Max",
+    Nmiss2 = "Missing"))
+# Creating tables
+table1 <- tableby (Treatment ~., data = masterdata, control = tcontrols)
+table2 <- tableby (Stage ~., data = masterdata, control = tcontrols)
+table3 <- tableby (Season ~., data = masterdata, control = tcontrols)
+table4 <- tableby (interaction (Treatment, Stage) ~., data = masterdata, control = tcontrols)
+write2html(table1, "table1.html", 
+           title = "TABLE 1: COMPARING FARM TREATMENTS: ANALYSIS OF VARIANCE (ANOVA) & DESCRIPTIVE STATS")
+write2html(table2, "table2.html", 
+           title = "TABLE 2: COMPARING STAGES: ANALYSIS OF VARIANCE (ANOVA) & DESCRIPTIVE STATS")
+write2html(table3, "table3.html",
+           title = "TABLE 3: COMPARING SEASONS: ANALYSIS OF VARIANCE (ANOVA) & DESCRIPTIVE STATS")
+write2html(table4, "table4.html",
+           title = "TABLE 4: COMPARING TREATMENTS & STAGES: ANALYSIS OF VARIANCE (ANOVA) & DESCRIPTIVE STATS")
+table1 <- as.data.frame(table1)
+table4 <- as.data.frame(table4)
+
+
+
+# Descriptive statistics by group using the Skimr package
 ##descriptive_gp <- masterdata %>% group_by (Treatment, Season) %>% skim () 
 ##descriptive_gp
 ##write2html(descriptive_gp, 
            ##keep.md = FALSE,  
            ##"~/descriptive.doc")
 
-# Descriptive statistics by group (which produces a better printout)
-library(arsenal) 
-descriptive_group <- tableby(interaction (Treatment, Season) ~ ., data = masterdata, 
-                             test = T, total = T, 
-                             numeric.test = "anova", cat.test = "chisq",
-                             numeric.stats = c("meansd", "medianq1q3", "range", "Nmiss2"),
-                             cat.stats = c("countpct", "Nmiss2"),
-                             stats.labels = list(
-                                  meansd = "Mean (SD)",
-                                  medianq1q3 = "Median (Q1, Q3)",
-                                  range = "Min - Max",
-                                  Nmiss2 = "Missing"))
-summary(descriptive_group, title = "Descriptive Statistics")
-write2word(descriptive_group, 
-           keep.md = FALSE,
-           "~/Desktop/descriptive.doc")
+# Descriptive statistics by group using the Arsenal package
+##library(arsenal) 
+##descriptive_group <- tableby(interaction (Treatment, Season) ~ ., data = masterdata, 
+##                             test = T, total = T, 
+##                             numeric.test = "anova", cat.test = "chisq",
+##                             numeric.stats = c("meansd", "medianq1q3", "range", "Nmiss2"),
+##                             cat.stats = c("countpct", "Nmiss2"),
+##                             stats.labels = list(
+##                                  meansd = "Mean (SD)",
+##                                  medianq1q3 = "Median (Q1, Q3)",
+##                                  range = "Min - Max",
+##                                  Nmiss2 = "Missing"))
+##summary(descriptive_group, title = "Descriptive Statistics")
+##write2word(descriptive_group, 
+##           keep.md = FALSE,
+##           "~/Desktop/descriptive.doc")
 
 
-# Visualizing the importance or relationship of individual variables to the outcome
+# Visualizing model variable correlations
+library (corrplot)
+masterdata_num <- masterdata [, c(4:13)]
+masterdata_num <- na.omit (masterdata_num)
+anyNA (masterdata_num)
+masterdata_num <- masterdata_num %>% rename (EC = Conductivity, 
+                                     TS = Total_Solids, 
+                                     VS = Volatile_Solids, 
+                                     Na = Sodium, 
+                                     K = Potassium, 
+                                     Ca = Calcium, 
+                                     NO3 = Nitrates)
+correlations = cor(masterdata_num)
+col3 <- colorRampPalette(c("brightred", "white", "blue")) 
+correlogram <- corrplot(correlations, type = "lower", tl.srt = 1, tl.pos = "d", tl.col = "black",
+                        outline = TRUE, order = "hclust", col = col3(10))
+
+# Visualizing the relationship of individual variables to the outcome
 ##Continuous Variables
 theme1 <- trellis.par.get()
 theme1$plot.symbol$col = rgb(.2, .2, .2, .4)
@@ -93,6 +153,8 @@ featurePlot(x = masterdata[,4:12],
             plot = "scatter",
             type = c("p", "smooth"), 
             labels = c("Predictors", "Bacterial Count (CFU)"))
+
+
 ##Categorical Variables
 library (Rmisc)
 bp1 <- ggplot (masterdata, aes (x = Treatment, y = CFU)) + 
@@ -104,13 +166,6 @@ bp3 <- ggplot (masterdata, aes (x = Stage, y = CFU)) +
 multiplot (bp1, bp2, bp3, layout = matrix (c(1,2,3,3), nrow=2, byrow=TRUE))
 
 
-# Visualizing predictor correlations
-library (corrplot)
-masterdata_num <- masterdata [, c(4:13)]
-masterdata_num <- na.omit (masterdata_num)
-anyNA (masterdata_num)
-correlations = cor(masterdata_num)
-corrplot(correlations, method="color")
 
 
 
@@ -131,8 +186,8 @@ nzv
 
 # Identifying correlated predictors
 masterdata_cor <-  cor (masterdata_num)
-## Finding variables that are correlated above 0.999
-highCorr <- sum(abs(masterdata_cor[upper.tri(masterdata_cor)]) > .999)
+## Finding variables that are correlated above 0.75
+highCorr <- sum(abs(masterdata_cor[upper.tri(masterdata_cor)]) > .75)
 highCorr
 ## [There are no variables that are correlated > 0.999, and thus, no variables need to be deleted]
 ## Removing highly correlated variables above 0.75 if the correlated variables had been found
@@ -144,9 +199,8 @@ highCorr
 
 
 # Finding linear dependancies 
-## [Does not apply here]
-  ## comboInfo <- findLinearCombos(masterdata)
-  ## comboInfo
+comboInfo <- findLinearCombos(masterdata_num)
+comboInfo
 
 
 
@@ -508,11 +562,13 @@ stackControl <- trainControl(method="repeatedcv",
                              savePredictions=TRUE, 
                              classProbs=TRUE)
 ## Ensemble the predictions of `models` to form a new combined prediction based on glm
-stack.glm <- caretStack(models, method="glm", metric="rmse", trControl=stackControl)
+stack.glm <- caretStack(Models, method="glm", metric="rmse", trControl=stackControl)
 print(stack.glm)
 # Predict on testData
-stack_predicteds <- predict(stack.glm, newdata=TestData4)
+stack_predicteds <- predict(stack.glm, newdata=TestData)
 stack_predicteds
+# Measures of regression between the actual outcome and the predicted outcome in the Test Dataset
+postResample(pred = stack_predicteds, obs = TestData$CFU)
 
 # Computing variable importance in the Combined Prediction based glm model
 varimp_combined <- varImp(stack_predicteds, useModel = FALSE, nonpara = FALSE, scale = TRUE)
