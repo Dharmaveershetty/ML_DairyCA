@@ -136,8 +136,9 @@ masterdata_num <- masterdata_num %>% rename (EC = Conductivity,
                                      Ca = Calcium, 
                                      NO3 = Nitrates)
 correlations = cor(masterdata_num)
-col3 <- colorRampPalette(c("brightred", "white", "blue")) 
-correlogram <- corrplot(correlations, type = "lower", tl.srt = 1, tl.pos = "d", tl.col = "black",
+col3 <- colorRampPalette(c("red", "white", "blue")) 
+correlogram <- corrplot(correlations, type = "lower", 
+                        tl.srt = 1, tl.pos = "d", tl.col = "black", tl.cex = 1.3, 
                         outline = TRUE, order = "hclust", col = col3(10))
 
 # Visualizing the relationship of individual variables to the outcome
@@ -153,6 +154,49 @@ featurePlot(x = masterdata[,4:12],
             plot = "scatter",
             type = c("p", "smooth"), 
             labels = c("Predictors", "Bacterial Count (CFU)"))
+
+
+##Continuous Variables (for publication purposes)
+library (ggplot2)
+##Positive Regressions
+p1 <- ggplot(data=masterdata, mapping = aes(x = Potassium, y = CFU)) +
+  geom_point(size = 1) +
+  geom_smooth(method = "glm", color = "blue")
+p2 <- ggplot(data=masterdata, mapping = aes(x = Nitrates, y = CFU)) +
+  geom_point(size = 1) +
+  geom_smooth(method = "glm", color = "blue")
+p3 <- ggplot(data=masterdata, mapping = aes(x = Calcium, y = CFU)) +
+  geom_point(size = 1) +
+  geom_smooth(method = "glm", color = "blue")
+p4 <- ggplot(data=masterdata, mapping = aes(x = Sodium, y = CFU)) +
+  geom_point(size = 1) +
+  geom_smooth(method = "glm", color = "blue")
+##Negative Regressions
+p5 <- ggplot(data=masterdata, mapping = aes(x = Salt, y = CFU)) +
+  geom_point(size = 1) +
+  geom_smooth(method = "glm", color = "red")
+p6 <- ggplot(data=masterdata, mapping = aes(x = Total_Solids, y = CFU)) +
+  geom_point(size = 1) +
+  geom_smooth(method = "glm", color = "red") + 
+  scale_y_continuous(limits = c(0,10000))
+p7 <- ggplot(data=masterdata, mapping = aes(x = pH, y = CFU)) +
+  geom_point(size = 1) +
+  geom_smooth(method = "glm", color = "red")
+p8 <- ggplot(data=masterdata, mapping = aes(x = Conductivity, y = CFU)) +
+  geom_point(size = 1) +
+  geom_smooth(method = "glm", color = "red")
+p9 <- ggplot(data=masterdata, mapping = aes(x = Volatile_Solids, y = CFU)) +
+  geom_point(size = 1) +
+  geom_smooth(method = "glm", color = "red")
+## Box and Whiskers Plot
+bp1 <- ggplot (masterdata, aes (x = Treatment, y = CFU)) + 
+  geom_boxplot()
+bp2 <- ggplot (masterdata, aes (x = Season, y = CFU)) + 
+  geom_boxplot()
+bp3 <- ggplot (masterdata, aes (x = Stage, y = CFU)) + 
+  geom_boxplot()
+multiplot (p1,p2,p3,p4,p5,p6,p7,p8,p9,bp1, bp2, bp3, cols = 3)
+           
 
 
 ##Categorical Variables
