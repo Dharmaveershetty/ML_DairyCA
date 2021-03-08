@@ -8,6 +8,10 @@
 # *Reference: https://topepo.github.io/caret/index.html
 # *Reference: https://www.machinelearningplus.com/machine-learning/caret-package/
 # *Reference: https://www.jstatsoft.org/article/view/v028i05
+# *Reference Tutorial: https://www.r-project.org/conferences/useR-2013/Tutorials/kuhn/user_caret_2up.pdf
+# *Reference (normality): https://statsandr.com/blog/do-my-data-follow-a-normal-distribution-a-note-on-the-most-widely-used-distribution-and-how-to-test-for-normality-in-r/#how-to-test-the-normality-assumption
+# *Reference (transformation): https://www.datanovia.com/en/lessons/transform-data-to-normal-distribution-in-r/
+# *Reference (outliers): https://statsandr.com/blog/outliers-detection-in-r/
 # -----------------------------------------------------------------------------------
 # -----------------------------------------------------------------------------------
 
@@ -39,8 +43,19 @@ masterdata <- masterdata %>% rename (Conductivity = conduc,
                                      Sodium = Na, 
                                      Potassium = K, 
                                      Calcium = Ca, 
-                                     Nitrates = NO3)
+                                     Nitrates = NO3,
+                                     E.coli = CFU) %>% mutate (Stage = recode (Stage, 
+                                                                               A = "S1",
+                                                                               B = "S2",
+                                                                               C = "S3",
+                                                                               D = "S4"))
 
+# Creating masterdata_num that is restricted to continuous variables
+masterdata_num <- masterdata [, c(4:13)]
+
+
+# (A) Descriptive Statistics
+# --------------------------
 
 # Descriptive & Univariate Statistics using the Skimr package
 ##library (skimr)
@@ -97,7 +112,6 @@ table1 <- as.data.frame(table1)
 table4 <- as.data.frame(table4)
 
 
-
 # Descriptive statistics by group using the Skimr package
 ##descriptive_gp <- masterdata %>% group_by (Treatment, Season) %>% skim () 
 ##descriptive_gp
@@ -123,6 +137,88 @@ table4 <- as.data.frame(table4)
 ##           "~/Desktop/descriptive.doc")
 
 
+
+# (B) Visualizing Distribution, Skewness, and Outliers for all continuous variables
+# ---------------------------------------------------------------------------------
+
+# (B1) The Normality assumption can be tested by (a) histograms, (b) density plots, (c) QQ plots,  
+       # and (d) normality tests like Shapiro-Wilk’s test and Kolmogorov-Smirnov tests.  
+       # Histograms and Density plots also help visualize Skewness
+library (ggpubr)
+
+# Visualizing Histogram for E.coli
+ggplot (data = masterdata, aes (x = E.coli)) + geom_histogram()
+# Visualizing Density Plot for E.coli
+ggplot (data = masterdata, aes (x = E.coli)) + stat_density() + 
+  stat_overlay_normal_density(color = "red", linetype = "dashed")
+## Not normally distributed; positively skewed
+
+
+# Visualizing Density Plots for all the variables
+# Changing (melting) the data from wide form to the long form
+library (reshape2)
+masterdata_long <- melt (masterdata_num)
+# Visualizing Density Plots for all the variables
+ggplot (data = masterdata_long, aes (x = value)) + stat_density() + facet_wrap (~variable, scales = "free")
+ggplot (data = masterdata_long, aes (x = value)) + stat_density() + 
+  stat_overlay_normal_density(color = "red", linetype = "dashed") + 
+  facet_wrap (~variable, scales = "free")
+
+
+# Visualizing QQ Plots for all variables
+ggqqplot(masterdata$Salt, title = "SALT")
+ggqqplot(masterdata$Calcium, title = "CALCIUM")
+ggqqplot(masterdata$Nitrates, title = "NITRATES")
+ggqqplot(masterdata$Sodium, title = "SODIUM")
+ggqqplot(masterdata$Potassium, title = "POTASSIUM")
+ggqqplot(masterdata$pH, title = "pH")
+ggqqplot(masterdata$Conductivity, title = "EC")
+ggqqplot(masterdata$Total_Solids, title = "TS")
+ggqqplot(masterdata$Volatile_Solids, title = "VS")
+ggqqplot(masterdata$E.coli, title = "E.coli")
+
+
+# Normality Tests (shapiro test, Ho: Follows normal distribution, Ha: Does not follow normal distribution)
+shapiro.test(masterdata$Salt)
+shapiro.test(masterdata$Calcium)
+shapiro.test(masterdata$Nitrates)
+shapiro.test(masterdata$Sodium)
+shapiro.test(masterdata$Potassium)
+shapiro.test(masterdata$pH)
+shapiro.test(masterdata$Conductivity)
+shapiro.test(masterdata$Total_Solids)
+shapiro.test(masterdata$Volatile_Solids)
+shapiro.test(masterdata$E.coli)
+
+# Skewness
+library (moments)
+skewness(masterdata$Salt, na.rm = TRUE)
+skewness(masterdata$Calcium, na.rm = TRUE)
+skewness(masterdata$Nitrates, na.rm = TRUE)
+skewness(masterdata$Sodium, na.rm = TRUE)
+skewness(masterdata$Potassium, na.rm = TRUE)
+skewness(masterdata$pH, na.rm = TRUE)
+skewness(masterdata$Conductivity, na.rm = TRUE)
+skewness(masterdata$Total_Solids, na.rm = TRUE)
+skewness(masterdata$Volatile_Solids, na.rm = TRUE)
+skewness(masterdata$E.coli, na.rm = TRUE)
+
+
+# (B2) The outliers can be visualized by using boxplots
+boxplot(masterdata_num)
+
+
+# Conclusion
+# Normally Distributed: None of the variables are normally distributed. 
+  # Ca, EC, and NO3 are the variables closest to being normally distributed 
+# Skewness: Positively skewed: E.coli, salt, Na, TS, pH
+# Outliers: Present in multiple variables
+
+
+
+# (D) Variable Correlations
+# --------------------------
+
 # Visualizing model variable correlations
 library (corrplot)
 masterdata_num <- masterdata [, c(4:13)]
@@ -141,7 +237,10 @@ correlogram <- corrplot(correlations, type = "lower",
                         tl.srt = 1, tl.pos = "d", tl.col = "black", tl.cex = 1.3, 
                         outline = TRUE, order = "hclust", col = col3(10))
 
-# Visualizing the relationship of individual variables to the outcome
+
+# (E) Visualizing the relationship of individual variables to the outcome
+# -----------------------------------------------------------------------
+
 ##Continuous Variables
 theme1 <- trellis.par.get()
 theme1$plot.symbol$col = rgb(.2, .2, .2, .4)
@@ -150,7 +249,7 @@ theme1$plot.line$col = rgb(1, 0, 0, .7)
 theme1$plot.line$lwd <- 2
 trellis.par.set(theme1)
 featurePlot(x = masterdata[,4:12],
-            y = masterdata$CFU,
+            y = masterdata$E.coli,
             plot = "scatter",
             type = c("p", "smooth"), 
             labels = c("Predictors", "Bacterial Count (CFU)"))
@@ -158,58 +257,48 @@ featurePlot(x = masterdata[,4:12],
 
 ##Continuous Variables (for publication purposes)
 library (ggplot2)
-##Positive Regressions
-p1 <- ggplot(data=masterdata, mapping = aes(x = Potassium, y = CFU)) +
+##Positive 
+p1 <- ggplot(data=masterdata, mapping = aes(x = Potassium, y = E.coli)) +
   geom_point(size = 1) +
   geom_smooth(method = "glm", color = "blue")
-p2 <- ggplot(data=masterdata, mapping = aes(x = Nitrates, y = CFU)) +
+p2 <- ggplot(data=masterdata, mapping = aes(x = Nitrates, y = E.coli)) +
   geom_point(size = 1) +
   geom_smooth(method = "glm", color = "blue")
-p3 <- ggplot(data=masterdata, mapping = aes(x = Calcium, y = CFU)) +
+p3 <- ggplot(data=masterdata, mapping = aes(x = Calcium, y = E.coli)) +
   geom_point(size = 1) +
   geom_smooth(method = "glm", color = "blue")
-p4 <- ggplot(data=masterdata, mapping = aes(x = Sodium, y = CFU)) +
+p4 <- ggplot(data=masterdata, mapping = aes(x = Sodium, y = E.coli)) +
   geom_point(size = 1) +
   geom_smooth(method = "glm", color = "blue")
-##Negative Regressions
-p5 <- ggplot(data=masterdata, mapping = aes(x = Salt, y = CFU)) +
+##Negative 
+p5 <- ggplot(data=masterdata, mapping = aes(x = Salt, y = E.coli)) +
   geom_point(size = 1) +
   geom_smooth(method = "glm", color = "red")
-p6 <- ggplot(data=masterdata, mapping = aes(x = Total_Solids, y = CFU)) +
+p6 <- ggplot(data=masterdata, mapping = aes(x = Total_Solids, y = E.coli)) +
   geom_point(size = 1) +
   geom_smooth(method = "glm", color = "red") + 
   scale_y_continuous(limits = c(0,10000))
-p7 <- ggplot(data=masterdata, mapping = aes(x = pH, y = CFU)) +
+p7 <- ggplot(data=masterdata, mapping = aes(x = pH, y = E.coli)) +
   geom_point(size = 1) +
   geom_smooth(method = "glm", color = "red")
-p8 <- ggplot(data=masterdata, mapping = aes(x = Conductivity, y = CFU)) +
+p8 <- ggplot(data=masterdata, mapping = aes(x = Conductivity, y = E.coli)) +
   geom_point(size = 1) +
   geom_smooth(method = "glm", color = "red")
-p9 <- ggplot(data=masterdata, mapping = aes(x = Volatile_Solids, y = CFU)) +
+p9 <- ggplot(data=masterdata, mapping = aes(x = Volatile_Solids, y = E.coli)) +
   geom_point(size = 1) +
   geom_smooth(method = "glm", color = "red")
-## Box and Whiskers Plot
-bp1 <- ggplot (masterdata, aes (x = Treatment, y = CFU)) + 
+##Categorical Variables
+##Box and Whiskers Plot
+bp1 <- ggplot (masterdata, aes (x = Treatment, y = E.coli)) + 
   geom_boxplot()
-bp2 <- ggplot (masterdata, aes (x = Season, y = CFU)) + 
+bp2 <- ggplot (masterdata, aes (x = Season, y = E.coli)) + 
   geom_boxplot()
-bp3 <- ggplot (masterdata, aes (x = Stage, y = CFU)) + 
+bp3 <- ggplot (masterdata, aes (x = Stage, y = E.coli)) + 
   geom_boxplot()
+##Creating a multiple plot 
+library (Rmisc)
 multiplot (p1,p2,p3,p4,p5,p6,p7,p8,p9,bp1, bp2, bp3, cols = 3)
            
-
-
-##Categorical Variables
-library (Rmisc)
-bp1 <- ggplot (masterdata, aes (x = Treatment, y = CFU)) + 
-  geom_boxplot()
-bp2 <- ggplot (masterdata, aes (x = Season, y = CFU)) + 
-  geom_boxplot()
-bp3 <- ggplot (masterdata, aes (x = Stage, y = CFU)) + 
-  geom_boxplot()
-multiplot (bp1, bp2, bp3, layout = matrix (c(1,2,3,3), nrow=2, byrow=TRUE))
-
-
 
 
 
@@ -233,7 +322,7 @@ masterdata_cor <-  cor (masterdata_num)
 ## Finding variables that are correlated above 0.75
 highCorr <- sum(abs(masterdata_cor[upper.tri(masterdata_cor)]) > .75)
 highCorr
-## [There are no variables that are correlated > 0.999, and thus, no variables need to be deleted]
+## [There are no variables that are correlated > 0.999 or >0.75, and thus, no variables need to be deleted]
 ## Removing highly correlated variables above 0.75 if the correlated variables had been found
   ## summary (masterdata_cor [upper.tri(masterdata_cor)])
   ## highlyCorMasterdata <- findCorrelation(masterdata_cor, cutoff = .75)
@@ -248,6 +337,411 @@ comboInfo
 
 
 
+# Transforming variables: normalizing, removing outliers, linearity, etc
+# --------------------------------------------------------------------------
+library(bestNormalize)
+library(ggpubr)
+library (moments)
+
+# E.coli
+## Histogram
+ggplot (data = masterdata, aes (x = E.coli)) + geom_histogram()
+## Density Distribution
+ggplot (data = masterdata, aes (x = E.coli)) + stat_density() + 
+  stat_overlay_normal_density(color = "red", linetype = "dashed")
+## QQ-Plot
+ggqqplot(masterdata$E.coli, title = "E.coli")
+## Normality Test
+shapiro.test(masterdata$E.coli)
+## Skewness
+skewness (masterdata$E.coli, na.rm = TRUE)
+## Outliers
+boxplot(masterdata$E.coli)
+## Rosners Test to stastistically detect outliers
+rosnerTest((masterdata$E.coli))
+## BestNormalize Transformation
+BNobject <- bestNormalize::bestNormalize(masterdata$E.coli)
+BNobject #Ordernorm transformation was chosen as the best transformation
+masterdata$E.coli_ON <- predict(BNobject$chosen_transform) 
+## Checking if the transformation worked
+ggplot (data = masterdata, aes (x = E.coli_ON)) + stat_density() + 
+  stat_overlay_normal_density(color = "red", linetype = "dashed")
+ggqqplot(masterdata$E.coli_ON, title = "E.coli")
+shapiro.test(masterdata$E.coli_ON)
+skewness (masterdata$E.coli_ON, na.rm = TRUE)
+boxplot(masterdata$E.coli_ON) # There appears to be one outlier at the lower level
+## Rosners Test to stastistically detect outliers
+library(EnvStats)
+rosnerTest((masterdata$E.coli_ON)) #There are no statistically significant outliers
+## OrderNorm Transformed
+
+# Salt
+## Histogram
+ggplot (data = masterdata, aes (x = Salt)) + geom_histogram()
+## Density Distribution
+ggplot (data = masterdata, aes (x = Salt)) + stat_density() 
+ggplot (data = masterdata, aes (x = Salt)) + stat_density() + 
+  stat_overlay_normal_density(color = "red", linetype = "dashed")
+## QQ-Plot
+ggqqplot(masterdata$Salt, title = "Salt")
+## Normality Test
+shapiro.test(masterdata$Salt)
+## Skewness
+skewness (masterdata$Salt, na.rm = TRUE)
+## Outliers
+boxplot(masterdata$Salt)
+## Rosners Test to stastistically detect outliers
+rosnerTest((masterdata$Salt))
+## BestNormalize Transformation
+BNobject <- bestNormalize::bestNormalize(masterdata$Salt)
+BNobject #Ordernorm transformation was chosen as the best transformation
+masterdata$Salt_ON <- predict(BNobject$chosen_transform) 
+## Checking if the transformation worked
+ggplot (data = masterdata, aes (x = Salt_ON)) + stat_density()
+ggplot (data = masterdata, aes (x = Salt_ON)) + stat_density() + 
+  stat_overlay_normal_density(color = "red", linetype = "dashed")
+ggqqplot(masterdata$Salt_ON, title = "Salt")
+shapiro.test(masterdata$Salt_ON)
+skewness (masterdata$Salt_ON, na.rm = TRUE)
+boxplot(masterdata$Salt_ON) # There appears to be no outliers
+## Rosners Test to stastistically detect outliers
+rosnerTest((masterdata$Salt_ON)) #There are no statistically significant outliers
+## OrderNorm Transformed
+
+# Calcium
+## Histogram
+ggplot (data = masterdata, aes (x = Calcium)) + geom_histogram()
+## Density Distribution
+ggplot (data = masterdata, aes (x = Calcium)) + stat_density() 
+ggplot (data = masterdata, aes (x = Calcium)) + stat_density() + 
+  stat_overlay_normal_density(color = "red", linetype = "dashed")
+## QQ-Plot
+ggqqplot(masterdata$Calcium, title = "Calcium")
+## Normality Test
+shapiro.test(masterdata$Calcium)
+## Skewness
+skewness (masterdata$Calcium, na.rm = TRUE)
+## Outliers
+boxplot(masterdata$Calcium)
+## Rosners Test to stastistically detect outliers
+rosnerTest((masterdata$Calcium)) #There are no statistically significant outliers
+## No transformation 
+
+
+# Nitrates
+## Histogram
+ggplot (data = masterdata, aes (x = Nitrates)) + geom_histogram()
+## Density Distribution
+ggplot (data = masterdata, aes (x = Nitrates)) + stat_density() 
+ggplot (data = masterdata, aes (x = Nitrates)) + stat_density() + 
+  stat_overlay_normal_density(color = "red", linetype = "dashed")
+## QQ-Plot
+ggqqplot(masterdata$Nitrates, title = "Nitrates")
+## Normality Test
+shapiro.test(masterdata$Nitrates)
+## Skewness
+skewness (masterdata$Nitrates, na.rm = TRUE)
+## Outliers
+boxplot(masterdata$Nitrates)
+## Rosners Test to stastistically detect outliers
+rosnerTest((masterdata$Nitrates)) #There are no statistically significant outliers
+## No transformation 
+
+# Sodium
+## Histogram
+ggplot (data = masterdata, aes (x = Sodium)) + geom_histogram()
+## Density Distribution
+ggplot (data = masterdata, aes (x = Sodium)) + stat_density() 
+ggplot (data = masterdata, aes (x = Sodium)) + stat_density() + 
+  stat_overlay_normal_density(color = "red", linetype = "dashed")
+## QQ-Plot
+ggqqplot(masterdata$Sodium, title = "Sodium")
+## Normality Test
+shapiro.test(masterdata$Sodium)
+## Skewness
+skewness (masterdata$Sodium, na.rm = TRUE)
+## Outliers
+boxplot(masterdata$Sodium)
+## Rosners Test to stastistically detect outliers
+rosnerTest((masterdata$Sodium)) #Atleast 3 outliers
+## BestNormalize Transformation
+BNobject <- bestNormalize::bestNormalize(masterdata$Sodium)
+BNobject #BoxCox transformation was chosen as the best transformation
+masterdata$Sodium_BC <- predict(BNobject$chosen_transform) 
+## Checking if the transformation worked
+ggplot (data = masterdata, aes (x = Sodium_BC)) + stat_density()
+ggplot (data = masterdata, aes (x = Sodium_BC)) + stat_density() + 
+  stat_overlay_normal_density(color = "red", linetype = "dashed")
+ggqqplot(masterdata$Sodium_BC, title = "Sodium")
+shapiro.test(masterdata$Sodium_BC)
+skewness (masterdata$Sodium_BC, na.rm = TRUE)
+boxplot(masterdata$Sodium_BC) # There appears to be outliers
+## Rosners Test to stastistically detect outliers
+rosnerTest((masterdata$Sodium_BC)) #There are no statistically significant outliers
+## BoxCox Transformed
+
+
+# Potassium
+## Histogram
+ggplot (data = masterdata, aes (x = Potassium)) + geom_histogram()
+## Density Distribution
+ggplot (data = masterdata, aes (x = Potassium)) + stat_density() 
+ggplot (data = masterdata, aes (x = Potassium)) + stat_density() + 
+  stat_overlay_normal_density(color = "red", linetype = "dashed")
+## QQ-Plot
+ggqqplot(masterdata$Potassium, title = "Potassium")
+## Normality Test
+shapiro.test(masterdata$Potassium)
+## Skewness
+skewness (masterdata$Potassium, na.rm = TRUE)
+## Outliers
+boxplot(masterdata$Potassium)
+## Rosners Test to stastistically detect outliers
+rosnerTest((masterdata$Potassium)) 
+## BestNormalize Transformation
+BNobject <- bestNormalize::bestNormalize(masterdata$Potassium)
+BNobject #BoxCox transformation was chosen as the best transformation
+masterdata$Potassium_BC <- predict(BNobject$chosen_transform) 
+## Checking if the transformation worked
+ggplot (data = masterdata, aes (x = Potassium_BC)) + stat_density()
+ggplot (data = masterdata, aes (x = Potassium_BC)) + stat_density() + 
+  stat_overlay_normal_density(color = "red", linetype = "dashed")
+ggqqplot(masterdata$Potassium_BC, title = "Potassium")
+shapiro.test(masterdata$Potassium_BC)
+skewness (masterdata$Potassium_BC, na.rm = TRUE)
+boxplot(masterdata$Potassium_BC) # There appears to be no outliers
+## Rosners Test to stastistically detect outliers
+rosnerTest((masterdata$Potassium_BC)) #There are no statistically significant outliers
+## BoxCox Transformed
+
+
+# pH
+## Histogram
+ggplot (data = masterdata, aes (x = pH)) + geom_histogram()
+## Density Distribution
+ggplot (data = masterdata, aes (x = pH)) + stat_density() 
+ggplot (data = masterdata, aes (x = pH)) + stat_density() + 
+  stat_overlay_normal_density(color = "red", linetype = "dashed")
+## QQ-Plot
+ggqqplot(masterdata$pH, title = "pH")
+## Normality Test
+shapiro.test(masterdata$pH)
+## Skewness
+skewness (masterdata$pH, na.rm = TRUE)
+## Outliers
+boxplot(masterdata$pH)
+## Rosners Test to stastistically detect outliers
+rosnerTest((masterdata$pH)) 
+## BestNormalize Transformation
+BNobject <- bestNormalize::bestNormalize(masterdata$pH)
+BNobject #OrderNorm transformation was chosen as the best transformation
+masterdata$pH_ON <- predict(BNobject$chosen_transform) 
+## Checking if the transformation worked
+ggplot (data = masterdata, aes (x = pH_ON)) + stat_density()
+ggplot (data = masterdata, aes (x = pH_ON)) + stat_density() + 
+  stat_overlay_normal_density(color = "red", linetype = "dashed")
+ggqqplot(masterdata$pH_ON, title = "pH")
+shapiro.test(masterdata$pH_ON)
+skewness (masterdata$pH_ON, na.rm = TRUE)
+boxplot(masterdata$pH_ON) # There appears to be 2 outliers
+## Rosners Test to stastistically detect outliers
+rosnerTest((masterdata$pH_ON)) #There are no statistically significant outliers
+## OrderNorm Transformed
+
+
+# Conductivity
+## Histogram
+ggplot (data = masterdata, aes (x = Conductivity)) + geom_histogram()
+## Density Distribution
+ggplot (data = masterdata, aes (x = Conductivity)) + stat_density() 
+ggplot (data = masterdata, aes (x = Conductivity)) + stat_density() + 
+  stat_overlay_normal_density(color = "red", linetype = "dashed")
+## QQ-Plot
+ggqqplot(masterdata$Conductivity, title = "Conductivity")
+## Normality Test
+shapiro.test(masterdata$Conductivity)
+## Skewness
+skewness (masterdata$Conductivity, na.rm = TRUE)
+## Outliers
+boxplot(masterdata$Conductivity)
+## Rosners Test to stastistically detect outliers
+rosnerTest((masterdata$Conductivity)) 
+## BestNormalize Transformation
+BNobject <- bestNormalize::bestNormalize(masterdata$Conductivity)
+BNobject #BoxCox transformation was chosen as the best transformation
+masterdata$Conductivity_BC <- predict(BNobject$chosen_transform) 
+## Checking if the transformation worked
+ggplot (data = masterdata, aes (x = Conductivity_BC)) + stat_density()
+ggplot (data = masterdata, aes (x = Conductivity_BC)) + stat_density() + 
+  stat_overlay_normal_density(color = "red", linetype = "dashed")
+ggqqplot(masterdata$Conductivity_BC, title = "Conductivity")
+shapiro.test(masterdata$Conductivity_BC)
+skewness (masterdata$Conductivity_BC, na.rm = TRUE)
+boxplot(masterdata$Conductivity_BC) # There appears to be no outliers
+## Rosners Test to stastistically detect outliers
+rosnerTest((masterdata$Conductivity_BC)) #There are no statistically significant outliers
+## BoxCox Transformed
+
+
+# Total_Solids
+## Histogram
+ggplot (data = masterdata, aes (x = Total_Solids)) + geom_histogram()
+## Density Distribution
+ggplot (data = masterdata, aes (x = Total_Solids)) + stat_density() 
+ggplot (data = masterdata, aes (x = Total_Solids)) + stat_density() + 
+  stat_overlay_normal_density(color = "red", linetype = "dashed")
+## QQ-Plot
+ggqqplot(masterdata$Total_Solids, title = "Total_Solids")
+## Normality Test
+shapiro.test(masterdata$Total_Solids)
+## Skewness
+skewness (masterdata$Total_Solids, na.rm = TRUE)
+## Outliers
+boxplot(masterdata$Total_Solids)
+## Rosners Test to stastistically detect outliers
+rosnerTest((masterdata$Total_Solids)) 
+## BestNormalize Transformation
+BNobject <- bestNormalize::bestNormalize(masterdata$Total_Solids)
+BNobject #OrderNorm transformation was chosen as the best transformation
+masterdata$Total_Solids_ON <- predict(BNobject$chosen_transform) 
+## Checking if the transformation worked
+ggplot (data = masterdata, aes (x = Total_Solids_ON)) + stat_density()
+ggplot (data = masterdata, aes (x = Total_Solids_ON)) + stat_density() + 
+  stat_overlay_normal_density(color = "red", linetype = "dashed")
+ggqqplot(masterdata$Total_Solids_ON, title = "Total_Solids")
+shapiro.test(masterdata$Total_Solids_ON)
+skewness (masterdata$Total_Solids_ON, na.rm = TRUE)
+boxplot(masterdata$Total_Solids_ON) # There appears to be no outliers
+## Rosners Test to stastistically detect outliers
+rosnerTest((masterdata$Total_Solids_ON)) #There are no statistically significant outliers
+## OrderNorm Transformed
+
+
+# Volatile_Solids
+## Histogram
+ggplot (data = masterdata, aes (x = Volatile_Solids)) + geom_histogram()
+## Density Distribution
+ggplot (data = masterdata, aes (x = Volatile_Solids)) + stat_density() 
+ggplot (data = masterdata, aes (x = Volatile_Solids)) + stat_density() + 
+  stat_overlay_normal_density(color = "red", linetype = "dashed")
+## QQ-Plot
+ggqqplot(masterdata$Volatile_Solids, title = "Volatile_Solids")
+## Normality Test
+shapiro.test(masterdata$Volatile_Solids)
+## Skewness
+skewness (masterdata$Volatile_Solids, na.rm = TRUE)
+## Outliers
+boxplot(masterdata$Volatile_Solids)
+## Rosners Test to stastistically detect outliers
+rosnerTest((masterdata$Volatile_Solids)) 
+## BestNormalize Transformation
+BNobject <- bestNormalize::bestNormalize(masterdata$Volatile_Solids)
+BNobject #SQRT (x+a) transformation was chosen as the best transformation
+masterdata$Volatile_Solids_SQRT <- predict(BNobject$chosen_transform) 
+## Checking if the transformation worked
+ggplot (data = masterdata, aes (x = Volatile_Solids_SQRT)) + stat_density()
+ggplot (data = masterdata, aes (x = Volatile_Solids_SQRT)) + stat_density() + 
+  stat_overlay_normal_density(color = "red", linetype = "dashed")
+ggqqplot(masterdata$Volatile_Solids_SQRT, title = "Volatile_Solids")
+shapiro.test(masterdata$Volatile_Solids_SQRT)
+skewness (masterdata$Volatile_Solids_SQRT, na.rm = TRUE)
+boxplot(masterdata$Volatile_Solids_SQRT) # There appears to be no outliers
+## Rosners Test to stastistically detect outliers
+rosnerTest((masterdata$Volatile_Solids_SQRT)) #There are no statistically significant outliers
+## SQRT (x+a) Transformed
+
+
+# Editing the masterdata set
+# --------------------------------------------------------------------------
+masterdata <- masterdata [, -c(4, 7:13)]
+
+masterdata <- masterdata %>% dplyr::rename (Conductivity = Conductivity_BC, 
+                                     Total_Solids = Total_Solids_ON, 
+                                     Volatile_Solids = Volatile_Solids_SQRT, 
+                                     Sodium = Sodium_BC, 
+                                     Salt = Salt_ON,
+                                     pH = pH_ON,
+                                     Potassium = Potassium_BC, 
+                                     E.coli = E.coli_ON)
+
+
+
+# Redoing the Publication Figures with the normality transformed master dataset 
+# -----------------------------------------------------------------------------
+
+# Visualizing model variable correlations
+library (corrplot)
+masterdata_num <- masterdata [, c(4:13)]
+masterdata_num <- na.omit (masterdata_num)
+anyNA (masterdata_num)
+masterdata_num <- masterdata_num %>% dplyr::rename (EC = Conductivity, 
+                                             TS = Total_Solids, 
+                                             VS = Volatile_Solids, 
+                                             Na = Sodium, 
+                                             K = Potassium, 
+                                             Ca = Calcium, 
+                                             NO3 = Nitrates)
+correlations = cor(masterdata_num)
+col3 <- colorRampPalette(c("red", "white", "blue")) 
+correlogram <- corrplot(correlations, type = "lower", 
+                        tl.srt = 1, tl.pos = "d", tl.col = "black", tl.cex = 1.3, 
+                        outline = TRUE, order = "hclust", col = col3(10))
+
+
+
+
+
+
+# Visualizing the relationship of individual variables to the outcome
+##Continuous Variables (for publication purposes)
+library (ggplot2)
+##Positive 
+p1 <- ggplot(data=masterdata, mapping = aes(x = Potassium, y = E.coli)) +
+  geom_point(size = 1) +
+  geom_smooth(method = "glm", color = "blue")
+p2 <- ggplot(data=masterdata, mapping = aes(x = Nitrates, y = E.coli)) +
+  geom_point(size = 1) +
+  geom_smooth(method = "glm", color = "blue")
+p3 <- ggplot(data=masterdata, mapping = aes(x = Calcium, y = E.coli)) +
+  geom_point(size = 1) +
+  geom_smooth(method = "glm", color = "blue")
+p4 <- ggplot(data=masterdata, mapping = aes(x = Sodium, y = E.coli)) +
+  geom_point(size = 1) +
+  geom_smooth(method = "glm", color = "blue")
+p5 <- ggplot(data=masterdata, mapping = aes(x = Salt, y = E.coli)) +
+  geom_point(size = 1) +
+  geom_smooth(method = "glm", color = "blue")
+##Negative 
+p6 <- ggplot(data=masterdata, mapping = aes(x = Total_Solids, y = E.coli)) +
+  geom_point(size = 1) +
+  geom_smooth(method = "glm", color = "red")
+p7 <- ggplot(data=masterdata, mapping = aes(x = pH, y = E.coli)) +
+  geom_point(size = 1) +
+  geom_smooth(method = "glm", color = "red")
+p8 <- ggplot(data=masterdata, mapping = aes(x = Conductivity, y = E.coli)) +
+  geom_point(size = 1) +
+  geom_smooth(method = "glm", color = "red")
+p9 <- ggplot(data=masterdata, mapping = aes(x = Volatile_Solids, y = E.coli)) +
+  geom_point(size = 1) +
+  geom_smooth(method = "glm", color = "red")
+##Categorical Variables
+##Box and Whiskers Plot
+bp1 <- ggplot (masterdata, aes (x = Treatment, y = E.coli)) + 
+  geom_boxplot()
+bp2 <- ggplot (masterdata, aes (x = Season, y = E.coli)) + 
+  geom_boxplot()
+bp3 <- ggplot (masterdata, aes (x = Stage, y = E.coli)) + 
+  geom_boxplot()
+##Creating a multiple plot 
+library (Rmisc)
+multiplot (p1,p2,p3,p4,p5,p6,p7,p8,p9,bp1, bp2, bp3, cols = 3)
+
+
+
+
+
+
+
 
 # ---------------------------------------------------------------------
 # 3: PRE-PROCESSING THE TRAINING & TEST DATASETS AFTER DATA SPLITTING  
@@ -257,16 +751,16 @@ comboInfo
 # Splitting the master dataset into training and test dataset, based on outcome=CFU
 set.seed (100)
 ## Step 1: Get row numbers for the training data
-TrainRowNumbers <- createDataPartition(masterdata$CFU, p=0.8, list=FALSE)
+TrainRowNumbers <- createDataPartition(masterdata$E.coli, p=0.8, list=FALSE)
 ## Step 2: Create the training dataset
 TrainData <- masterdata[TrainRowNumbers,]
 ## Step 3: Create the test dataset
 TestData <- masterdata[-TrainRowNumbers,]
 ## Store X & Y from training dataset for future use
 x_train = TrainData[, 1:12]
-y_train = TrainData$CFU
+y_train = TrainData$E.coli
 x_test = TestData[, 1:12]
-y_test = TestData$CFU
+y_test = TestData$E.coli
 
 
 # (1) Data Imputation Model: Creating a Data Imputation Model (knn imputation model) using the Training Dataset
@@ -280,7 +774,7 @@ MissingDataModel
 ## [One-hot means only one of the dummy variables are 1, and all the others are 0.]
 ## [Creating dummy variables is converting a categorical variable to as many binary variables as here are categories.]
 ## [Creating the dummy variables using this function removes the outcome variable]
-DummiesModel <- dummyVars(CFU ~ ., data = TrainData)
+DummiesModel <- dummyVars(E.coli ~ ., data = TrainData)
 DummiesModel
 
 
@@ -306,7 +800,7 @@ TrainData <- predict(TransformationModel, newdata = TrainData)
 ### [Check if all the predictors (except response variable, CFU) range from 0 to 1]
 apply(TrainData[, 1:17], 2, FUN=function(x){c('min'=min(x), 'max'=max(x))})
 ## Append the Y variable and convert to df
-TrainData$CFU <- y_train
+TrainData$E.coli <- y_train
 TrainData <- as.data.frame(TrainData)
 
 
@@ -321,7 +815,7 @@ str(TestData)
 ## (3) Transformation (Range)
 TestData <- predict(TransformationModel, newdata = TestData)
 ## Append the Y variable and convert to df
-TestData$CFU <- y_test
+TestData$E.coli <- y_test
 TestData <- as.data.frame(TestData)
 
 
@@ -348,16 +842,16 @@ ctrl_ct <- rfeControl(functions = caretFuncs,
                       repeats = 5,
                       verbose = FALSE)
 ## (Creating the simulation model for Recursive Feature Elimination)
-lmProfile_rf <- rfe(x=TrainData[, 1:17], y=TrainData$CFU,
+lmProfile_rf <- rfe(x=TrainData[, 1:17], y=TrainData$E.coli,
                     sizes = subsets,
                     rfeControl = ctrl_rf)
-lmProfile_lm <- rfe(x=TrainData[, 1:17], y=TrainData$CFU,
+lmProfile_lm <- rfe(x=TrainData[, 1:17], y=TrainData$E.coli,
                     sizes = subsets,
                     rfeControl = ctrl_lm)
-lmProfile_tb <- rfe(x=TrainData[, 1:17], y=TrainData$CFU,
+lmProfile_tb <- rfe(x=TrainData[, 1:17], y=TrainData$E.coli,
                     sizes = subsets,
                     rfeControl = ctrl_tb)
-lmProfile_ct <- rfe(x=TrainData[, 1:17], y=TrainData$CFU,
+lmProfile_ct <- rfe(x=TrainData[, 1:17], y=TrainData$E.coli,
                     sizes = subsets,
                     rfeControl = ctrl_ct)
 lmProfile_rf
@@ -480,7 +974,7 @@ set.seed(100)
 ## Creating an universal traincontrol function
 trainControl <- trainControl(method="repeatedcv", 
                              number=10, 
-                             repeats=3,
+                             repeats=20,
                              savePredictions=TRUE, 
                              classProbs=TRUE)
 ## Stacking Algorithms - creating groups of algorithms to run together
@@ -491,129 +985,143 @@ Algorithms <- c('bayesglm', 'glm', 'glmStepAIC',
                 'rf','cforest','parRF','qrf','ranger','Rborist','rfRules','RRF','RRFglobal',
                 'earth', 'widekernelpls', 'enet')
 ## Runing multiple algorithms/models in a combined call.            
-Models <- caretList(CFU ~ ., data=TrainData, trControl=trainControl, methodList=Algorithms) 
-## Obtaining the results of the model sets
+Models <- caretList(E.coli ~ ., data=TrainData, trControl=trainControl, methodList=Algorithms) 
+## Obtaining the results of the model sets using resampling and trainControl as defined earlier
 Results_models <- resamples(Models)
-## Summarizing the results of the model sets
+## Summarizing the results of the model sets 
 summary (Results_models)
+## Looking at all three parameters but mainly considering RMSE
+parallelplot(Results_models, metric = "RMSE")
+parallelplot(Results_models, metric = "Rsquared")
+parallelplot(Results_models, metric = "MAE")
+
+
 ## Box plots to compare models using the bw plot function
 scales <- list(x=list(relation="free"), y=list(relation="free"))
 bw_models <- bwplot(Results_models, scales=scales)
-## Box plots to compare models using the ggplot2 plot function (which gives us more control but is tougher to perform)
+## RMSE: Box plots to compare models using the ggplot2 plot function (which gives us more control but is tougher to perform)
 library(tidyverse)
 Results_models$values %>%                   #extract the values
   select(1, ends_with("RMSE")) %>%          #select the first column and all columns with a name ending with "RMSE"
   gather(model, RMSE, -1) %>%               #convert to long table
   mutate(model = sub("~RMSE", "", model)) %>%              #leave just the model names
   ggplot()+                                                #call ggplot
-  geom_boxplot(aes(x = RMSE, y = model)) -> p1             #and plot the box plot
-Results_models$values %>%                  
-  select(1, ends_with("Rsquared")) %>%          
-  gather(model, Rsquared, -1) %>%               
-  mutate(model = sub("~Rsquared", "", model)) %>%              
-  ggplot()+                                                
-  geom_boxplot(aes(x = Rsquared, y = model)) -> p2
-library (Rmisc)
-multiplot(p1, p2, cols = 2)
+  geom_boxplot(aes(x = RMSE, y = model))+                  #and plot the box plot
+  theme(plot.margin = margin (t = 80, r = 80, b = 40, l = 40),
+        axis.title.x = element_text(size = 28, margin = margin(t = 20, r = 20, b = 0, l = 0)),
+        axis.title.y = element_blank(),
+        axis.text.x = element_text(size=20, margin = margin(t = 10)),
+        axis.text.y = element_text(size=20, margin = margin (r = 10))) -> p1
+p1
 
+## R2: Box Plots using ggplot2
+##Results_models$values %>%                  
+## select(1, ends_with("Rsquared")) %>%          
+## gather(model, Rsquared, -1) %>%               
+## mutate(model = sub("~Rsquared", "", model)) %>%              
+## ggplot()+                                                
+## geom_boxplot(aes(x = Rsquared, y = model))+                  
+## theme(plot.margin = margin (t = 80, r = 80, b = 40, l = 40),
+##        axis.title.x = element_text(size = 28, margin = margin(t = 20, r = 20, b = 0, l = 0)),
+##        axis.title.y = element_blank(),
+##        axis.text.x = element_text(size=20, margin = margin(t = 10)),
+##        axis.text.y = element_text(size=20, margin = margin (r = 10)))  -> p2
+##p2
+##library (Rmisc)
+##multiplot(p1, p2, cols = 2)
 
-## [Thus, based on the RMSE scores, the best models are svmRadialSigma and qrf]
-
-
-
-# Running the second best Model = qrf, in more detail
-set.seed(100)
-## Looking up the parameters present in the model
-modelLookup("qrf")
-## Training the model
-model_qrf = train (CFU ~., data=TrainData, method='qrf')
-## Visualizing the model parameters chosen
-model_qrf
-plot (model_qrf)
-## Hypertuning the parameters of the model using the previously used TrainControl function
-set.seed(100)
-model_qrf = train(CFU ~ ., data=TrainData, method='qrf', tuneLength = 5, metric='rmse', trControl = trainControl)
-model_qrf
-plot (model_qrf)
-## Fitting the trained model to the Training Data to predict the outcome (only for visualization since it is done automatically in the model)
-fitted_qrf <- predict (model_qrf)
-fitted_qrf
-## Computing the importance of each variable in the model
-varimp_qrf <- varImp(model_qrf, useModel = FALSE, nonpara = FALSE, scale = TRUE)
-plot(varimp_qrf, main="Variable Importance with qrf")
+# Calculating p-values to determine if the models are statistically different (using RMSE)
+ModelDiffs<-diff(Results_models, metric="RMSE")
+summary(ModelDiffs)
 
 
 
-# Running the first best Model = svmRadialSigma, in more detail
+# (A) Combing all 28 models to form a final ensemble model using GLM
+# -----------------------------------------------------------------------
+library (caretEnsemble)
+## Create the trainControl
+stackControl <- trainControl(method="repeatedcv", 
+                             number=10, 
+                             repeats=20,
+                             savePredictions=TRUE, 
+                             classProbs=TRUE)
+## Ensemble the predictions of `models` to form a new combined prediction based on glm
+stack.glm.all <- caretStack(Models, method="glm", metric="RMSE", trControl=stackControl)
+print(stack.glm.all)
+summary (stack.glm.all)
+# Computing individual model importance in the Combined Prediction based glm model
+varimp_combined <- varImp(stack.glm.all$ens_model, useModel = TRUE, nonpara = FALSE, scale = TRUE)
+varimp_combined
+varimp_combined$importance
+plot(varimp_combined, main="Variable Importance with Ensemble GLM Model")
+
+
+# (B) Running the best Model = svmRadialSigma in more detail
+#-------------------------------------------------------------------
 set.seed(100)
 ## Looking up the parameters present in the model
 modelLookup("svmRadialSigma")
+
 ## Training the model
-model_svmRadialSigma = train (CFU ~., data=TrainData, method='svmRadialSigma')
+model_svmRadialSigma = train (E.coli ~., data=TrainData, method='svmRadialSigma')
 ## Visualizing the model parameters chosen
 model_svmRadialSigma
 plot (model_svmRadialSigma)
 ## Creating an universal traincontrol function
-trainControl <- trainControl(method="cv", 
-                             number=10, 
-                             repeats=3,
+trainControl <- trainControl(method="repeatedcv", 
+                             number=10,
+                             repeats = 20,
                              savePredictions=TRUE, 
                              classProbs=TRUE)
 ## Hypertuning the parameters of the model 
 set.seed(100)
-model_svmRadialSigma = train(CFU ~ ., data=TrainData, method='svmRadialSigma', tuneLength = 5, metric='rmse', trControl = trainControl)
+model_svmRadialSigma = train(E.coli ~ ., data=TrainData, method='svmRadialSigma', tuneLength=10, trControl = trainControl)
 model_svmRadialSigma
 plot (model_svmRadialSigma)
+model_svmRadialSigma$finalModel
 ## Fitting the trained model to the Training Data to predict the outcome (only for visualization since it is done automatically in the model)
 fitted_svmRadialSigma <- predict (model_svmRadialSigma)
 fitted_svmRadialSigma
 ## Computing the importance of each variable in the model
 varimp_svmRadialSigma <- varImp(model_svmRadialSigma, useModel = FALSE, nonpara = FALSE, scale = TRUE)
-plot(varimp_svmRadialSigma, main="Variable Importance with SVMRadialSigma")
+varimp_svmRadialSigma
+plot(varimp_svmRadialSigma, cex = 1)
 
 
 
-
+# (C) Combining the best performing (RMSE median) models in each of the 7 families to create ensemble using GLM
+# -------------------------------------------------------------------------------------------------------------
+##Not good to choose the best performing models for ensemble because closely correlated models cause problems
+#Algorithms_best <- c('glmStepAIC', 'ranger', 'xgbDART', 'svmRadialSigma', 'earth', 'brnn','widekernelpls')
+#Models_best <- caretList(E.coli ~ ., data=TrainData, trControl=trainControl, methodList=Algorithms_best) 
+#Results_models_best <- resamples(Models_best)
+#summary(Results_models_best)
+#stack.glm.best <- caretStack(Models_best, method="glm", metric="rmse", trControl=stackControl)
+#print(stack.glm.best)
 
 
 # ------------------------------------------------------------------
 # 5.MODEL TESTING: USING THE TEST DATASET
 # -------------------------------------------------------------------
 
-
-# qrf Model: Predicting the outcome in the Test dataset using the trained model
-predicted_qrf <- predict(model_qrf, TestData)
-predicted_qrf
+# Combined GLM Model: Predicting the outcome in the Test dataset using the trained model
+stack_predicteds <- predict(stack.glm.all, newdata=TestData)
+stack_predicteds
 # Measures of regression between the actual outcome and the predicted outcome in the Test Dataset
-postResample(pred = predicted_qrf, obs = TestData$CFU)
+postResample(pred = stack_predicteds, obs = TestData$E.coli)
 
 
 # svmRadialSigma Model: Predicting the outcome in the Test dataset using the trained model
 predicted_svmRadialSigma <- predict(model_svmRadialSigma, TestData)
 predicted_svmRadialSigma
 # Measures of regression between the actual outcome and the predicted outcome in the Test Dataset
-postResample(pred = predicted_svmRadialSigma, obs = TestData$CFU)
+postResample(pred = predicted_svmRadialSigma, obs = TestData$E.coli)
+
+
+## Determining the Model Independant variable importance metric for the best fit independent model, svmRadialSigma
+varimp_model <- varImp(model_svmRadialSigma, useModel = TRUE, nonpara = TRUE, scale = TRUE)
+varimp_model
+plot(varimp_svmRadialSigma, cex = 1)
 
 
 
-
-
-# Combing the predictions of multiple models to form a final prediction
-## Create the trainControl
-stackControl <- trainControl(method="repeatedcv", 
-                             number=10, 
-                             repeats=3,
-                             savePredictions=TRUE, 
-                             classProbs=TRUE)
-## Ensemble the predictions of `models` to form a new combined prediction based on glm
-stack.glm <- caretStack(Models, method="glm", metric="rmse", trControl=stackControl)
-print(stack.glm)
-# Predict on testData
-stack_predicteds <- predict(stack.glm, newdata=TestData)
-stack_predicteds
-# Measures of regression between the actual outcome and the predicted outcome in the Test Dataset
-postResample(pred = stack_predicteds, obs = TestData$CFU)
-
-# Computing variable importance in the Combined Prediction based glm model
-varimp_combined <- varImp(stack_predicteds, useModel = FALSE, nonpara = FALSE, scale = TRUE)
-plot(varimp_combined, main="Variable Importance with MARS")
