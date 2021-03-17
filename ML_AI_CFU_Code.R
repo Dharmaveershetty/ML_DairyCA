@@ -12,6 +12,7 @@
 # *Reference (normality): https://statsandr.com/blog/do-my-data-follow-a-normal-distribution-a-note-on-the-most-widely-used-distribution-and-how-to-test-for-normality-in-r/#how-to-test-the-normality-assumption
 # *Reference (transformation): https://www.datanovia.com/en/lessons/transform-data-to-normal-distribution-in-r/
 # *Reference (outliers): https://statsandr.com/blog/outliers-detection-in-r/
+# *Reference (model performance improvement): https://link.springer.com/chapter/10.1007/978-1-4842-2334-5_8
 # -----------------------------------------------------------------------------------
 # -----------------------------------------------------------------------------------
 
@@ -27,7 +28,7 @@ library (tidyverse)
 
 # Import master dataset & convert to data frame
 masterdata <- read_excel("masterdata.xlsx")
-masterdata <- as.data.frame (masterdata)
+masterdata <- as.data.frame (masterdata1)
 
 
 # Creating a concise dataset restricted to sample averages
@@ -287,7 +288,8 @@ p8 <- ggplot(data=masterdata, mapping = aes(x = Conductivity, y = E.coli)) +
 p9 <- ggplot(data=masterdata, mapping = aes(x = Volatile_Solids, y = E.coli)) +
   geom_point(size = 1) +
   geom_smooth(method = "glm", color = "red")
-##Categorical Variables
+
+##Categorical Variables (for publication purposes)
 ##Box and Whiskers Plot
 bp1 <- ggplot (masterdata, aes (x = Treatment, y = E.coli)) + 
   geom_boxplot()
@@ -299,8 +301,6 @@ bp3 <- ggplot (masterdata, aes (x = Stage, y = E.coli)) +
 library (Rmisc)
 multiplot (p1,p2,p3,p4,p5,p6,p7,p8,p9,bp1, bp2, bp3, cols = 3)
            
-
-
 
 # ---------------------------------------------------------------------
 # 2: PRE-PROCESSING THE MASTER DATASET
@@ -1036,7 +1036,7 @@ summary(ModelDiffs)
 
 
 
-# (A) Combing all 28 models to form a final ensemble model using GLM
+# (A) Combing all 28 models to form an ensemble model using GLM
 # -----------------------------------------------------------------------
 library (caretEnsemble)
 ## Create the trainControl
@@ -1056,12 +1056,38 @@ varimp_combined$importance
 plot(varimp_combined, main="Variable Importance with Ensemble GLM Model")
 
 
-# (B) Running the best Model = svmRadialSigma in more detail
+# (B) 26-model GLM Ensemble (28 models minus Rborist which had zero importance & minus SVMLinear 2 which did not yield any value since it was correlated; compared to the 28-model ensemble)
+set.seed(100)
+trainControl <- trainControl(method="repeatedcv", 
+                             number=10, 
+                             repeats=20,
+                             savePredictions=TRUE, 
+                             classProbs=TRUE)
+Algorithms_imp <- c('bayesglm', 'glm', 'glmStepAIC',
+                    'xgbDART', 'xgbLinear', 'xgbTree',
+                    'svmRadialSigma', 'svmRadial','svmLinear', 'svmLinear3','svmPoly','svmRadialCost',
+                    'avNNet', 'nnet','brnn',
+                    'rf','cforest','parRF','qrf','ranger', 'rfRules', 'RRF','RRFglobal',
+                    'earth', 'widekernelpls', 'enet')
+Models_imp <- caretList(E.coli ~ ., data=TrainData, trControl=trainControl, methodList=Algorithms_imp) 
+Results_models_imp <- resamples(Models_imp)
+summary(Results_models_imp)
+stack.glm.imp <- caretStack(Models_imp, method="glm", metric="rmse", trControl=stackControl)
+print(stack.glm.imp)
+summary (stack.glm.imp)
+# Computing individual model importance in the Combined Prediction based glm model
+varimp_combined_imp <- varImp(stack.glm.imp$ens_model, useModel = TRUE, nonpara = FALSE, scale = TRUE)
+varimp_combined_imp
+varimp_combined_imp$importance
+plot(varimp_combined_imp, main="Variable Importance with 26-model GLM")
+
+
+
+# (C) Running one of the 2 best Models = svmRadialSigma in more detail
 #-------------------------------------------------------------------
 set.seed(100)
 ## Looking up the parameters present in the model
 modelLookup("svmRadialSigma")
-
 ## Training the model
 model_svmRadialSigma = train (E.coli ~., data=TrainData, method='svmRadialSigma')
 ## Visualizing the model parameters chosen
@@ -1088,8 +1114,39 @@ varimp_svmRadialSigma
 plot(varimp_svmRadialSigma, cex = 1)
 
 
+# (D) Running one of the 2 best Models  = Ranger in more detail
+#-------------------------------------------------------------------
+set.seed(100)
+## Looking up the parameters present in the model
+modelLookup("ranger")
+## Training the model
+model_ranger = train (E.coli ~., data=TrainData, method='ranger')
+## Visualizing the model parameters chosen
+model_ranger
+plot (model_ranger)
+## Creating an universal traincontrol function
+trainControl <- trainControl(method="repeatedcv", 
+                             number=10,
+                             repeats = 20,
+                             savePredictions=TRUE, 
+                             classProbs=TRUE)
+## Hypertuning the parameters of the model 
+set.seed(100)
+model_ranger = train(E.coli ~ ., data=TrainData, method='ranger', tuneLength=10, trControl = trainControl)
+model_ranger
+plot (model_ranger)
+model_ranger$finalModel
+## Fitting the trained model to the Training Data to predict the outcome (only for visualization since it is done automatically in the model)
+fitted_ranger <- predict (model_ranger)
+fitted_ranger
+## Computing the importance of each variable in the model
+varimp_ranger <- varImp(model_ranger, useModel = FALSE, nonpara = FALSE, scale = TRUE)
+varimp_ranger
+plot(varimp_ranger, cex = 1)
 
-# (C) Combining the best performing (RMSE median) models in each of the 7 families to create ensemble using GLM
+
+
+# (E) Combining the best performing (RMSE median) models in each of the 7 families to create ensemble using GLM
 # -------------------------------------------------------------------------------------------------------------
 ##Not good to choose the best performing models for ensemble because closely correlated models cause problems
 #Algorithms_best <- c('glmStepAIC', 'ranger', 'xgbDART', 'svmRadialSigma', 'earth', 'brnn','widekernelpls')
@@ -1104,11 +1161,18 @@ plot(varimp_svmRadialSigma, cex = 1)
 # 5.MODEL TESTING: USING THE TEST DATASET
 # -------------------------------------------------------------------
 
-# Combined GLM Model: Predicting the outcome in the Test dataset using the trained model
+# Combined 28-model GLM Ensemble: Predicting the outcome in the Test dataset using the trained model
 stack_predicteds <- predict(stack.glm.all, newdata=TestData)
 stack_predicteds
 # Measures of regression between the actual outcome and the predicted outcome in the Test Dataset
 postResample(pred = stack_predicteds, obs = TestData$E.coli)
+
+
+# Combined 26-model GLM Ensemble: Predicting the outcome in the Test dataset using the trained model
+stack_predicteds_imp <- predict(stack.glm.imp, newdata=TestData)
+stack_predicteds_imp
+# Measures of regression between the actual outcome and the predicted outcome in the Test Dataset
+postResample(pred = stack_predicteds_imp, obs = TestData$E.coli)
 
 
 # svmRadialSigma Model: Predicting the outcome in the Test dataset using the trained model
@@ -1119,7 +1183,7 @@ postResample(pred = predicted_svmRadialSigma, obs = TestData$E.coli)
 
 
 ## Determining the Model Independant variable importance metric for the best fit independent model, svmRadialSigma
-varimp_model <- varImp(model_svmRadialSigma, useModel = TRUE, nonpara = TRUE, scale = TRUE)
+varimp_model <- varImp(model_svmRadialSigma, useModel = FALSE, nonpara = TRUE, scale = TRUE)
 varimp_model
 plot(varimp_svmRadialSigma, cex = 1)
 
