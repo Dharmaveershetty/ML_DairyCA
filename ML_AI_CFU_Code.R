@@ -27,8 +27,9 @@ library (caret)
 library (tidyverse)
 
 # Import master dataset & convert to data frame
+##(27July2021 - Changed VS to absolute % (from earlier % of TS))
 masterdata <- read_excel("masterdata.xlsx")
-masterdata <- as.data.frame (masterdata1)
+masterdata <- as.data.frame (masterdata)
 
 
 # Creating a concise dataset restricted to sample averages
@@ -164,20 +165,23 @@ ggplot (data = masterdata_long, aes (x = value)) + stat_density() + facet_wrap (
 ggplot (data = masterdata_long, aes (x = value)) + stat_density() + 
   stat_overlay_normal_density(color = "red", linetype = "dashed") + 
   facet_wrap (~variable, scales = "free")
+detach (package:reshape2)
 
 
 # Visualizing QQ Plots for all variables
-ggqqplot(masterdata$Salt, title = "SALT")
-ggqqplot(masterdata$Calcium, title = "CALCIUM")
-ggqqplot(masterdata$Nitrates, title = "NITRATES")
-ggqqplot(masterdata$Sodium, title = "SODIUM")
-ggqqplot(masterdata$Potassium, title = "POTASSIUM")
-ggqqplot(masterdata$pH, title = "pH")
-ggqqplot(masterdata$Conductivity, title = "EC")
-ggqqplot(masterdata$Total_Solids, title = "TS")
-ggqqplot(masterdata$Volatile_Solids, title = "VS")
-ggqqplot(masterdata$E.coli, title = "E.coli")
-
+QQ_S <- ggqqplot(masterdata$Salt, title = "SALT")
+QQ_Ca <- ggqqplot(masterdata$Calcium, title = "CALCIUM")
+QQ_NO3 <- ggqqplot(masterdata$Nitrates, title = "NITRATES")
+QQ_Na <- ggqqplot(masterdata$Sodium, title = "SODIUM")
+QQ_K <- ggqqplot(masterdata$Potassium, title = "POTASSIUM")
+QQ_pH <- ggqqplot(masterdata$pH, title = "pH")
+QQ_EC <- ggqqplot(masterdata$Conductivity, title = "EC")
+QQ_TS <- ggqqplot(masterdata$Total_Solids, title = "TS")
+QQ_VS <- ggqqplot(masterdata$Volatile_Solids, title = "VS")
+QQ_CFU <- ggqqplot(masterdata$E.coli, title = "E.coli")
+##Creating a multiple plot 
+library (Rmisc)
+multiplot (QQ_S, QQ_Ca, QQ_NO3, QQ_Na, QQ_K, QQ_pH, QQ_EC, QQ_TS, QQ_VS, QQ_CFU, cols = 4)
 
 # Normality Tests (shapiro test, Ho: Follows normal distribution, Ha: Does not follow normal distribution)
 shapiro.test(masterdata$Salt)
@@ -222,10 +226,11 @@ boxplot(masterdata_num)
 
 # Visualizing model variable correlations
 library (corrplot)
+library (dplyr)
 masterdata_num <- masterdata [, c(4:13)]
 masterdata_num <- na.omit (masterdata_num)
 anyNA (masterdata_num)
-masterdata_num <- masterdata_num %>% rename (EC = Conductivity, 
+masterdata_num <- masterdata_num %>% dplyr::rename (EC = Conductivity, 
                                      TS = Total_Solids, 
                                      VS = Volatile_Solids, 
                                      Na = Sodium, 
@@ -279,13 +284,15 @@ p6 <- ggplot(data=masterdata, mapping = aes(x = Total_Solids, y = E.coli)) +
   geom_point(size = 1) +
   geom_smooth(method = "glm", color = "red") + 
   scale_y_continuous(limits = c(0,10000))
-p7 <- ggplot(data=masterdata, mapping = aes(x = pH, y = E.coli)) +
+p7 <- ggplot(data=masterdata, mapping = aes(x = Volatile_Solids, y = E.coli)) +
   geom_point(size = 1) +
-  geom_smooth(method = "glm", color = "red")
-p8 <- ggplot(data=masterdata, mapping = aes(x = Conductivity, y = E.coli)) +
+  geom_smooth(method = "glm", color = "red") + 
+  scale_y_continuous(limits = c(0,10000))
+p8 <- ggplot(data=masterdata, mapping = aes(x = pH, y = E.coli)) +
   geom_point(size = 1) +
-  geom_smooth(method = "glm", color = "red")
-p9 <- ggplot(data=masterdata, mapping = aes(x = Volatile_Solids, y = E.coli)) +
+  geom_smooth(method = "glm", color = "red") + 
+  scale_y_continuous(limits = c(0,10000))
+p9 <- ggplot(data=masterdata, mapping = aes(x = Conductivity, y = E.coli)) +
   geom_point(size = 1) +
   geom_smooth(method = "glm", color = "red")
 
@@ -358,6 +365,7 @@ skewness (masterdata$E.coli, na.rm = TRUE)
 ## Outliers
 boxplot(masterdata$E.coli)
 ## Rosners Test to stastistically detect outliers
+library(EnvStats)
 rosnerTest((masterdata$E.coli))
 ## BestNormalize Transformation
 BNobject <- bestNormalize::bestNormalize(masterdata$E.coli)
@@ -708,23 +716,27 @@ p3 <- ggplot(data=masterdata, mapping = aes(x = Calcium, y = E.coli)) +
 p4 <- ggplot(data=masterdata, mapping = aes(x = Sodium, y = E.coli)) +
   geom_point(size = 1) +
   geom_smooth(method = "glm", color = "blue")
+##Negative 
 p5 <- ggplot(data=masterdata, mapping = aes(x = Salt, y = E.coli)) +
   geom_point(size = 1) +
-  geom_smooth(method = "glm", color = "blue")
-##Negative 
+  geom_smooth(method = "glm", color = "red")
 p6 <- ggplot(data=masterdata, mapping = aes(x = Total_Solids, y = E.coli)) +
   geom_point(size = 1) +
-  geom_smooth(method = "glm", color = "red")
-p7 <- ggplot(data=masterdata, mapping = aes(x = pH, y = E.coli)) +
+  geom_smooth(method = "glm", color = "red") + 
+  scale_y_continuous(limits = c(0,10000))
+p7 <- ggplot(data=masterdata, mapping = aes(x = Volatile_Solids, y = E.coli)) +
+  geom_point(size = 1) +
+  geom_smooth(method = "glm", color = "red") + 
+  scale_y_continuous(limits = c(0,10000))
+p8 <- ggplot(data=masterdata, mapping = aes(x = pH, y = E.coli)) +
+  geom_point(size = 1) +
+  geom_smooth(method = "glm", color = "red") + 
+  scale_y_continuous(limits = c(0,10000))
+p9 <- ggplot(data=masterdata, mapping = aes(x = Conductivity, y = E.coli)) +
   geom_point(size = 1) +
   geom_smooth(method = "glm", color = "red")
-p8 <- ggplot(data=masterdata, mapping = aes(x = Conductivity, y = E.coli)) +
-  geom_point(size = 1) +
-  geom_smooth(method = "glm", color = "red")
-p9 <- ggplot(data=masterdata, mapping = aes(x = Volatile_Solids, y = E.coli)) +
-  geom_point(size = 1) +
-  geom_smooth(method = "glm", color = "red")
-##Categorical Variables
+
+##Categorical Variables (for publication purposes)
 ##Box and Whiskers Plot
 bp1 <- ggplot (masterdata, aes (x = Treatment, y = E.coli)) + 
   geom_boxplot()
@@ -735,9 +747,6 @@ bp3 <- ggplot (masterdata, aes (x = Stage, y = E.coli)) +
 ##Creating a multiple plot 
 library (Rmisc)
 multiplot (p1,p2,p3,p4,p5,p6,p7,p8,p9,bp1, bp2, bp3, cols = 3)
-
-
-
 
 
 
