@@ -27,7 +27,7 @@ library (tidyverse)
 
 # Import master dataset & convert to data frame
 ##(27July2021 - Changed VS to absolute % (from earlier % of TS))
-masterdata <- read_excel("masterdata_tsr.xlsx")
+masterdata <- read_excel("masterdata_tsc.xlsx")
 masterdata <- as.data.frame (masterdata)
 
 # Creating a concise dataset by removing duplicates
@@ -44,7 +44,7 @@ masterdata <- masterdata %>% rename (Conductivity = conduc,
                                      Calcium = Ca, 
                                      Nitrates = NO3,
                                      E.coli = CFU, 
-                                     Reduction_in_Total_Solids = TSR) %>% mutate (Stage = recode (Stage, 
+                                     Change_In_Total_Solids = TSC) %>% mutate (Stage = recode (Stage, 
                                                                                A = "S1",
                                                                                B = "S2",
                                                                                C = "S3",
@@ -147,9 +147,9 @@ table4 <- as.data.frame(table4)
 library (ggpubr)
 
 # Visualizing Histogram for TS
-ggplot (data = masterdata, aes (x = Total_Solids)) + geom_histogram()
+ggplot (data = masterdata, aes (x = Change_In_Total_Solids)) + geom_histogram()
 # Visualizing Density Plot for TS
-ggplot (data = masterdata, aes (x = Total_Solids)) + stat_density() + 
+ggplot (data = masterdata, aes (x = Change_In_Total_Solids)) + stat_density() + 
   stat_overlay_normal_density(color = "red", linetype = "dashed")
 ## Not normally distributed; positively skewed
 
@@ -176,7 +176,7 @@ ggqqplot(masterdata$Conductivity, title = "EC")
 ggqqplot(masterdata$Total_Solids, title = "TS")
 ggqqplot(masterdata$Volatile_Solids, title = "VS")
 ggqqplot(masterdata$E.coli, title = "E.coli")
-
+ggqqplot(masterdata$Change_In_Total_Solids, title = "Change In Total Solids")
 
 # Normality Tests (shapiro test, Ho: Follows normal distribution, Ha: Does not follow normal distribution)
 shapiro.test(masterdata$Salt)
@@ -189,6 +189,7 @@ shapiro.test(masterdata$Conductivity)
 shapiro.test(masterdata$Total_Solids)
 shapiro.test(masterdata$Volatile_Solids)
 shapiro.test(masterdata$E.coli)
+shapiro.test(masterdata$Change_In_Total_Solids)
 
 # Skewness
 library (moments)
@@ -202,7 +203,7 @@ skewness(masterdata$Conductivity, na.rm = TRUE)
 skewness(masterdata$Total_Solids, na.rm = TRUE)
 skewness(masterdata$Volatile_Solids, na.rm = TRUE)
 skewness(masterdata$E.coli, na.rm = TRUE)
-
+skewness(masterdata$Change_In_Total_Solids, na.rm = TRUE)
 
 # (B2) The outliers can be visualized by using boxplots
 boxplot(masterdata_num)
@@ -229,7 +230,8 @@ masterdata_num <- masterdata_num %>% rename (EC = Conductivity,
                                      Na = Sodium, 
                                      K = Potassium, 
                                      Ca = Calcium, 
-                                     NO3 = Nitrates)
+                                     NO3 = Nitrates,
+                                     TSC = Change_In_Total_Solids)
 correlations = cor(masterdata_num)
 col3 <- colorRampPalette(c("red", "white", "blue")) 
 correlogram <- corrplot(correlations, type = "lower", 
@@ -249,10 +251,10 @@ theme1$plot.line$lwd <- 2
 trellis.par.set(theme1)
 o <- c(4:10, 12, 13)
 featurePlot(x = masterdata[,o],
-            y = masterdata$Total_Solids,
+            y = masterdata$Change_In_Total_Solids,
             plot = "scatter",
             type = c("p", "smooth"), 
-            labels = c("Predictors", "Total_Solids"))
+            labels = c("Predictors", "Change_In_Total_Solids"))
 
 
 
@@ -264,32 +266,35 @@ featurePlot(x = masterdata[,o],
 ##Continuous Variables (for publication purposes)
 library (ggplot2)
 ##Negatve 
-p1 <- ggplot(data=masterdata, mapping = aes(x = Potassium, y = log(Total_Solids))) +
+p1 <- ggplot(data=masterdata, mapping = aes(x = Potassium, y = log(Change_In_Total_Solids))) +
   geom_point(size = 1) +
   geom_smooth(method = "glm", color = "red")
-p2 <- ggplot(data=masterdata, mapping = aes(x = Nitrates, y = log(Total_Solids))) +
+p2 <- ggplot(data=masterdata, mapping = aes(x = Nitrates, y = log(Change_In_Total_Solids))) +
   geom_point(size = 1) +
   geom_smooth(method = "glm", color = "red")
-p3 <- ggplot(data=masterdata, mapping = aes(x = Calcium, y = log(Total_Solids))) +
+p3 <- ggplot(data=masterdata, mapping = aes(x = Calcium, y = log(Change_In_Total_Solids))) +
   geom_point(size = 1) +
   geom_smooth(method = "glm", color = "red")
-p4 <- ggplot(data=masterdata, mapping = aes(x = Sodium, y = log(Total_Solids))) +
+p4 <- ggplot(data=masterdata, mapping = aes(x = Sodium, y = log(Change_In_Total_Solids))) +
   geom_point(size = 1) +
   geom_smooth(method = "glm", color = "red")
-p5 <- ggplot(data=masterdata, mapping = aes(x = Salt, y = log(Total_Solids))) +
+p5 <- ggplot(data=masterdata, mapping = aes(x = Salt, y = log(Change_In_Total_Solids))) +
   geom_point(size = 1) +
   geom_smooth(method = "glm", color = "red")
-p6 <- ggplot(data=masterdata, mapping = aes(x = E.coli, y = log(Total_Solids))) +
+p6 <- ggplot(data=masterdata, mapping = aes(x = E.coli, y = log(Change_In_Total_Solids))) +
   geom_point(size = 1) +
   geom_smooth(method = "glm", color = "red")
-p7 <- ggplot(data=masterdata, mapping = aes(x = pH, y = log(Total_Solids))) +
+p7 <- ggplot(data=masterdata, mapping = aes(x = pH, y = log(Change_In_Total_Solids))) +
   geom_point(size = 1) +
   geom_smooth(method = "glm", color = "red")
-p8 <- ggplot(data=masterdata, mapping = aes(x = Conductivity, y = log(Total_Solids))) +
+p8 <- ggplot(data=masterdata, mapping = aes(x = Conductivity, y = log(Change_In_Total_Solids))) +
   geom_point(size = 1) +
   geom_smooth(method = "glm", color = "red")
 ##Positive 
-p9 <- ggplot(data=masterdata, mapping = aes(x = Volatile_Solids, y = log(Total_Solids))) +
+p9 <- ggplot(data=masterdata, mapping = aes(x = Volatile_Solids, y = log(Change_In_Total_Solids))) +
+  geom_point(size = 1) +
+  geom_smooth(method = "glm", color = "blue")
+p10 <- ggplot(data=masterdata, mapping = aes(x = Total_Solids, y = log(Change_In_Total_Solids))) +
   geom_point(size = 1) +
   geom_smooth(method = "glm", color = "blue")
 
@@ -303,7 +308,7 @@ bp3 <- ggplot (masterdata, aes (x = Stage, y = log(Total_Solids))) +
   geom_boxplot()
 ##Creating a multiple plot 
 library (Rmisc)
-multiplot (p1,p2,p3,p4,p5,p6,p7,p8,p9,bp1, bp2, bp3, cols = 3)
+multiplot (p1,p2,p3,p4,p5,p6,p7,p8,p9,p10, bp1, bp2, bp3, cols = 4)
            
 
 # ---------------------------------------------------------------------
@@ -347,6 +352,39 @@ library(bestNormalize)
 library(ggpubr)
 library (moments)
 library (EnvStats)
+
+# Change in Total Solids
+## Histogram
+ggplot (data = masterdata, aes (x = Change_In_Total_Solids)) + geom_histogram()
+## Density Distribution
+ggplot (data = masterdata, aes (x = Change_In_Total_Solids)) + stat_density() + 
+  stat_overlay_normal_density(color = "red", linetype = "dashed")
+## QQ-Plot
+ggqqplot(masterdata$Change_In_Total_Solids, title = "Change in Total Solids")
+## Normality Test
+shapiro.test(masterdata$Change_In_Total_Solids)
+## Skewness
+skewness (masterdata$Change_In_Total_Solids, na.rm = TRUE)
+## Outliers
+boxplot(masterdata$Change_In_Total_Solids)
+## Rosners Test to stastistically detect outliers
+rosnerTest((masterdata$Change_In_Total_Solids))
+## BestNormalize Transformation
+BNobject <- bestNormalize::bestNormalize(masterdata$Change_In_Total_Solids)
+BNobject #Ordernorm transformation was chosen as the best transformation
+masterdata$Change_In_Total_Solids_ON <- predict(BNobject$chosen_transform) 
+## Checking if the transformation worked
+ggplot (data = masterdata, aes (x = Change_In_Total_Solids_ON)) + stat_density() + 
+  stat_overlay_normal_density(color = "red", linetype = "dashed")
+ggqqplot(masterdata$Change_In_Total_Solids_ON, title = "Total Solids")
+shapiro.test(masterdata$Change_In_Total_Solids_ON)
+skewness (masterdata$Change_In_Total_Solids_ON, na.rm = TRUE)
+boxplot(masterdata$Change_In_Total_Solids_ON) # There appears to be one outlier at the lower level
+## Rosners Test to stastistically detect outliers
+rosnerTest((masterdata$Change_In_Total_Solids_ON)) #There are no statistically significant outliers
+## OrderNorm Transformed
+
+
 
 # Total Solids
 ## Histogram
@@ -666,7 +704,8 @@ masterdata <- masterdata %>% dplyr::rename (Conductivity = Conductivity_BC,
                                      Salt = Salt_ON,
                                      pH = pH_ON,
                                      Potassium = Potassium_BC, 
-                                     E.coli = E.coli_ON)
+                                     E.coli = E.coli_ON,
+                                     Change_In_Total_Solids_ON = Change_In_Total_Solids)
 
 
 
@@ -684,7 +723,8 @@ masterdata_num <- masterdata_num %>% dplyr::rename (EC = Conductivity,
                                              Na = Sodium, 
                                              K = Potassium, 
                                              Ca = Calcium, 
-                                             NO3 = Nitrates)
+                                             NO3 = Nitrates
+                                             TSC = Change_In_Total_Solids)
 correlations = cor(masterdata_num)
 col3 <- colorRampPalette(c("red", "white", "blue")) 
 correlogram <- corrplot(correlations, type = "lower", 
@@ -700,42 +740,45 @@ correlogram <- corrplot(correlations, type = "lower",
 ##Continuous Variables (for publication purposes)
 library (ggplot2)
 ##Negatve 
-p1 <- ggplot(data=masterdata, mapping = aes(x = Potassium, y = Total_Solids)) +
+p1 <- ggplot(data=masterdata, mapping = aes(x = Potassium, y = Change_In_Total_Solids)) +
   geom_point(size = 1) +
   geom_smooth(method = "glm", color = "red")
-p2 <- ggplot(data=masterdata, mapping = aes(x = Nitrates, y = Total_Solids)) +
+p2 <- ggplot(data=masterdata, mapping = aes(x = Nitrates, y = Change_In_Total_Solids)) +
   geom_point(size = 1) +
   geom_smooth(method = "glm", color = "red")
-p3 <- ggplot(data=masterdata, mapping = aes(x = Calcium, y = Total_Solids)) +
+p3 <- ggplot(data=masterdata, mapping = aes(x = Calcium, y = Change_In_Total_Solids)) +
   geom_point(size = 1) +
   geom_smooth(method = "glm", color = "red")
-p4 <- ggplot(data=masterdata, mapping = aes(x = Sodium, y = Total_Solids)) +
+p4 <- ggplot(data=masterdata, mapping = aes(x = Sodium, y = Change_In_Total_Solids)) +
   geom_point(size = 1) +
   geom_smooth(method = "glm", color = "red")
-p5 <- ggplot(data=masterdata, mapping = aes(x = Salt, y = Total_Solids)) +
+p5 <- ggplot(data=masterdata, mapping = aes(x = Salt, y = Change_In_Total_Solids)) +
   geom_point(size = 1) +
   geom_smooth(method = "glm", color = "red")
-p6 <- ggplot(data=masterdata, mapping = aes(x = pH, y = Total_Solids)) +
+p6 <- ggplot(data=masterdata, mapping = aes(x = pH, y = Change_In_Total_Solids)) +
   geom_point(size = 1) +
   geom_smooth(method = "glm", color = "red")
-p7 <- ggplot(data=masterdata, mapping = aes(x = Conductivity, y = Total_Solids)) +
+p7 <- ggplot(data=masterdata, mapping = aes(x = Conductivity, y = Change_In_Total_Solids)) +
   geom_point(size = 1) +
   geom_smooth(method = "glm", color = "red")
 ##Positive 
-p8 <- ggplot(data=masterdata, mapping = aes(x = E.coli, y = Total_Solids)) +
+p8 <- ggplot(data=masterdata, mapping = aes(x = E.coli, y = Change_In_Total_Solids)) +
   geom_point(size = 1) +
   geom_smooth(method = "glm", color = "blue")
-p9 <- ggplot(data=masterdata, mapping = aes(x = Volatile_Solids, y = Total_Solids)) +
+p9 <- ggplot(data=masterdata, mapping = aes(x = Volatile_Solids, y = Change_In_Total_Solids)) +
+  geom_point(size = 1) +
+  geom_smooth(method = "glm", color = "blue")
+p9 <- ggplot(data=masterdata, mapping = aes(x = Total_Solids, y = Change_In_Total_Solids)) +
   geom_point(size = 1) +
   geom_smooth(method = "glm", color = "blue")
 
 ##Categorical Variables (for publication purposes)
 ##Box and Whiskers Plot
-bp1 <- ggplot (masterdata, aes (x = Treatment, y = Total_Solids)) + 
+bp1 <- ggplot (masterdata, aes (x = Treatment, y = Change_In_Total_Solids)) + 
   geom_boxplot()
-bp2 <- ggplot (masterdata, aes (x = Season, y = Total_Solids)) + 
+bp2 <- ggplot (masterdata, aes (x = Season, y = Change_In_Total_Solids)) + 
   geom_boxplot()
-bp3 <- ggplot (masterdata, aes (x = Stage, y = Total_Solids)) + 
+bp3 <- ggplot (masterdata, aes (x = Stage, y = Change_In_Total_Solids)) + 
   geom_boxplot()
 ##Creating a multiple plot 
 library (Rmisc)
@@ -752,12 +795,12 @@ multiplot (p1,p2,p3,p4,p5,p6,p7,p8,p9,bp1, bp2, bp3, cols = 3)
 # ---------------------------------------------------------------------
 
 # Deleting the rows which have no TS value 
-masterdata <- masterdata %>% drop_na(Total_Solids)
+masterdata <- masterdata %>% drop_na(Change_In_Total_Solids)
 
 # Splitting the master dataset into training and test dataset, based on outcome=CFU
 set.seed (100)
 ## Step 1: Get row numbers for the training data
-TrainRowNumbers <- createDataPartition(masterdata$Total_Solids, p=0.8, list=FALSE)
+TrainRowNumbers <- createDataPartition(masterdata$Change_In_Total_Solids, p=0.8, list=FALSE)
 ## Step 2: Create the training dataset
 TrainData <- masterdata[TrainRowNumbers,]
 ## Step 3: Create the test dataset
@@ -765,9 +808,9 @@ TestData <- masterdata[-TrainRowNumbers,]
 ## Store X & Y from training dataset for future use
 m = c(1:5, 7:13)
 x_train = TrainData[, m]
-y_train = TrainData$Total_Solids
+y_train = TrainData$Change_In_Total_Solids
 x_test = TestData[, m]
-y_test = TestData$Total_Solids
+y_test = TestData$Change_In_Total_Solids
 
 
 # (1) Data Imputation Model: Creating a Data Imputation Model (knn imputation model) using the Training Dataset
@@ -781,7 +824,7 @@ MissingDataModel
 ## [One-hot means only one of the dummy variables are 1, and all the others are 0.]
 ## [Creating dummy variables is converting a categorical variable to as many binary variables as here are categories.]
 ## [Creating the dummy variables using this function removes the outcome variable]
-DummiesModel <- dummyVars(Total_Solids ~ ., data = TrainData)
+DummiesModel <- dummyVars(Change_In_Total_Solids ~ ., data = TrainData)
 DummiesModel
 
 
@@ -807,7 +850,7 @@ TrainData <- predict(TransformationModel, newdata = TrainData)
 ### [Check if all the predictors (except response variable, CFU) range from 0 to 1]
 apply(TrainData[, 1:17], 2, FUN=function(x){c('min'=min(x), 'max'=max(x))})
 ## Append the Y variable and convert to df
-TrainData$Total_Solids <- y_train
+TrainData$Change_In_Total_Solids <- y_train
 TrainData <- as.data.frame(TrainData)
 
 
@@ -822,7 +865,7 @@ str(TestData)
 ## (3) Transformation (Range)
 TestData <- predict(TransformationModel, newdata = TestData)
 ## Append the Y variable and convert to df
-TestData$Total_Solids <- y_test
+TestData$Change_In_Total_Solids <- y_test
 TestData <- as.data.frame(TestData)
 
 
@@ -849,16 +892,16 @@ ctrl_ct <- rfeControl(functions = caretFuncs,
                       repeats = 5,
                       verbose = FALSE)
 ## (Creating the simulation model for Recursive Feature Elimination)
-lmProfile_rf <- rfe(x=TrainData[, 1:17], y=TrainData$Total_Solids,
+lmProfile_rf <- rfe(x=TrainData[, 1:17], y=TrainData$Change_In_Total_Solids,
                     sizes = subsets,
                     rfeControl = ctrl_rf)
-lmProfile_lm <- rfe(x=TrainData[, 1:17], y=TrainData$Total_Solids,
+lmProfile_lm <- rfe(x=TrainData[, 1:17], y=TrainData$Change_In_Total_Solids,
                     sizes = subsets,
                     rfeControl = ctrl_lm)
-lmProfile_tb <- rfe(x=TrainData[, 1:17], y=TrainData$Total_Solids,
+lmProfile_tb <- rfe(x=TrainData[, 1:17], y=TrainData$Change_In_Total_Solids,
                     sizes = subsets,
                     rfeControl = ctrl_tb)
-lmProfile_ct <- rfe(x=TrainData[, 1:17], y=TrainData$Total_Solids,
+lmProfile_ct <- rfe(x=TrainData[, 1:17], y=TrainData$Change_In_Total_Solids,
                     sizes = subsets,
                     rfeControl = ctrl_ct)
 lmProfile_rf
@@ -992,7 +1035,7 @@ Algorithms <- c('bayesglm', 'glm', 'glmStepAIC',
                 'rf','cforest','parRF','qrf','ranger','Rborist','rfRules','RRF','RRFglobal',
                 'earth', 'widekernelpls', 'enet')
 ## Runing multiple algorithms/models in a combined call.            
-Models <- caretList(Total_Solids ~ ., data=TrainData, trControl=trainControl, methodList=Algorithms) 
+Models <- caretList(Change_In_Total_Solids ~ ., data=TrainData, trControl=trainControl, methodList=Algorithms) 
 ## Obtaining the results of the model sets using resampling and trainControl as defined earlier
 Results_models <- resamples(Models)
 ## Summarizing the results of the model sets 
