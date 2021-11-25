@@ -27,16 +27,14 @@ library (tidyverse)
 
 # Import master dataset & convert to data frame
 ##(27July2021 - Changed VS to absolute % (from earlier % of TS))
-masterdata <- read_excel("masterdata.xlsx")
+masterdata <- read_excel("masterdata_tsr.xlsx")
 masterdata <- as.data.frame (masterdata)
 
-
-# Creating a concise dataset restricted to sample averages
-masterdata <- masterdata [, c(1:7,11,15,19,23,27,31,35:37,42)]
+# Creating a concise dataset by removing duplicates
 ## (Removed the 'farm' variable since the treatment variable is a duplicate of the 'farm' variable)
 ## (Removed the 'sample code' variable in order to avoid creating multiple dummy variables)
 ## (Removed the 'no' variable to avoid serial numbers for each row taken as a continuous variable)
-## (Removed the date variabel as the dates were converted into seasons; i.e, time series into categorial)
+## (Removed the date variable as the dates were converted into seasons; i.e, time series into categorial)
 masterdata <- masterdata [, -c(1:3,7)]
 masterdata <- masterdata %>% rename (Conductivity = conduc, 
                                      Total_Solids = TS, 
@@ -45,14 +43,15 @@ masterdata <- masterdata %>% rename (Conductivity = conduc,
                                      Potassium = K, 
                                      Calcium = Ca, 
                                      Nitrates = NO3,
-                                     E.coli = CFU) %>% mutate (Stage = recode (Stage, 
+                                     E.coli = CFU, 
+                                     Reduction_in_Total_Solids = TSR) %>% mutate (Stage = recode (Stage, 
                                                                                A = "S1",
                                                                                B = "S2",
                                                                                C = "S3",
                                                                                D = "S4"))
 
 # Creating masterdata_num that is restricted to continuous variables
-masterdata_num <- masterdata [, c(4:13)]
+masterdata_num <- masterdata [, c(4:14)]
 
 
 # (A) Descriptive Statistics
