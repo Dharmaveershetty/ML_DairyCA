@@ -146,12 +146,12 @@ table4 <- as.data.frame(table4)
        # Histograms and Density plots also help visualize Skewness
 library (ggpubr)
 
-# Visualizing Histogram for TS
+# Visualizing Histogram for TSC
 ggplot (data = masterdata, aes (x = Change_In_Total_Solids)) + geom_histogram()
 # Visualizing Density Plot for TS
 ggplot (data = masterdata, aes (x = Change_In_Total_Solids)) + stat_density() + 
   stat_overlay_normal_density(color = "red", linetype = "dashed")
-## Not normally distributed; positively skewed
+## Rough normal distribution; but positively skewed
 
 
 # Visualizing Density Plots for all the variables
@@ -212,7 +212,7 @@ boxplot(masterdata_num)
 # Conclusion
 # Normally Distributed: None of the variables are normally distributed. 
   # Ca, EC, and NO3 are the variables closest to being normally distributed 
-# Skewness: Positively skewed: E.coli, salt, Na, TS, pH
+# Skewness: Positively skewed: E.coli, salt, Na, TS, pH, TSC
 # Outliers: Present in multiple variables
 
 
@@ -221,7 +221,7 @@ boxplot(masterdata_num)
 
 # Visualizing model variable correlations
 library (corrplot)
-masterdata_num <- masterdata [, c(4:13)]
+masterdata_num <- masterdata [, c(4:14)]
 masterdata_num <- na.omit (masterdata_num)
 anyNA (masterdata_num)
 masterdata_num <- masterdata_num %>% rename (EC = Conductivity, 
@@ -249,7 +249,7 @@ theme1$plot.symbol$pch = 16
 theme1$plot.line$col = rgb(1, 0, 0, .7)
 theme1$plot.line$lwd <- 2
 trellis.par.set(theme1)
-o <- c(4:10, 12, 13)
+o <- c(4:13)
 featurePlot(x = masterdata[,o],
             y = masterdata$Change_In_Total_Solids,
             plot = "scatter",
@@ -257,10 +257,6 @@ featurePlot(x = masterdata[,o],
             labels = c("Predictors", "Change_In_Total_Solids"))
 
 
-
-#REDO FROM THIS PLACE ONWARDS
-#MAKE DESCRIPTIVE GRAPHS FOR ALL THE ELECTROLYTES ACROSS THE VARIOUS STAGES, TREATMENT TYPES, ETC
-#SEE IF ANY PATTERNS EMERGE
 
 
 ##Continuous Variables (for publication purposes)
@@ -300,15 +296,15 @@ p10 <- ggplot(data=masterdata, mapping = aes(x = Total_Solids, y = log(Change_In
 
 ##Categorical Variables (for publication purposes)
 ##Box and Whiskers Plot
-bp1 <- ggplot (masterdata, aes (x = Treatment, y = log(Total_Solids))) + 
+bp1 <- ggplot (masterdata, aes (x = Treatment, y = log(Change_In_Total_Solids))) + 
   geom_boxplot()
-bp2 <- ggplot (masterdata, aes (x = Season, y = log(Total_Solids))) + 
+bp2 <- ggplot (masterdata, aes (x = Season, y = log(Change_In_Total_Solids))) + 
   geom_boxplot()
-bp3 <- ggplot (masterdata, aes (x = Stage, y = log(Total_Solids))) + 
+bp3 <- ggplot (masterdata, aes (x = Stage, y = log(Change_In_Total_Solids))) + 
   geom_boxplot()
 ##Creating a multiple plot 
 library (Rmisc)
-multiplot (p1,p2,p3,p4,p5,p6,p7,p8,p9,p10, bp1, bp2, bp3, cols = 4)
+multiplot (p1,p2,p3,p4,p5,p6,p7,p8,p9,p10, bp1, bp2, bp3, cols = 3)
            
 
 # ---------------------------------------------------------------------
@@ -333,11 +329,11 @@ highCorr <- sum(abs(masterdata_cor[upper.tri(masterdata_cor)]) > .75)
 highCorr
 ## [There are no variables that are correlated > 0.999 or >0.75, and thus, no variables need to be deleted]
 ## Removing highly correlated variables above 0.75 if the correlated variables had been found
-  ## summary (masterdata_cor [upper.tri(masterdata_cor)])
-  ## highlyCorMasterdata <- findCorrelation(masterdata_cor, cutoff = .75)
-  ## masterdata_filtered <- masterdata [, -highlyCorMasterdata]
-  ## masterdata_cor_2 <- cor (masterdata_filtered)
-  ## summary (masterdata_cor_2 [upper.tri(masterdata_cor_2)]) 
+summary (masterdata_cor [upper.tri(masterdata_cor)])
+highlyCorMasterdata <- findCorrelation(masterdata_cor, cutoff = .75)
+masterdata_filtered <- masterdata [, -highlyCorMasterdata]
+masterdata_cor_2 <- cor (masterdata_filtered)
+summary (masterdata_cor_2 [upper.tri(masterdata_cor_2)]) 
 
 
 # Finding linear dependancies 
@@ -723,7 +719,7 @@ masterdata_num <- masterdata_num %>% dplyr::rename (EC = Conductivity,
                                              Na = Sodium, 
                                              K = Potassium, 
                                              Ca = Calcium, 
-                                             NO3 = Nitrates
+                                             NO3 = Nitrates,
                                              TSC = Change_In_Total_Solids)
 correlations = cor(masterdata_num)
 col3 <- colorRampPalette(c("red", "white", "blue")) 
